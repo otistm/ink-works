@@ -21,8 +21,9 @@ function drawBuild(){
   for(let x=0;x<=GW;x++) for(let y=0;y<=GH;y++){ ctx.beginPath(); ctx.arc(g.cx+(x-3.5)*cs,g.cy+(y-3.5)*cs,1.4,0,TAU); ctx.fill(); } ctx.restore();
   if(GS.lv.kind==='bridge'){ GS.view=g; const B=bridgeGraph(GS.design), att=attachedBridge(GS.design);
     drawBridge(B.nodes.map(n=>({k:n.k,x:n.x,y:-n.y,gx:n.x,gy:n.y})),B.links,{att,placed:GS.placed,now}); return; }
+  const watch=GS.lv.kind==='watch', Gs=watch?gearSpeeds(GS.design):null;
   // balance point: little pointers on the bench edges, and a faint dot
-  const S=makeSim(GS.design,GS.lv); if(S.P.length>1){ const core=S.P.find(p=>p.k==='core');
+  const S=makeSim(GS.design,GS.lv); if(S.P.length>1&&!watch){ const core=S.P.find(p=>p.k==='core');
     const bx=core.bx-core.rx, by=core.by-core.ry; const sx=g.cx+bx*cs, sy=g.cy-by*cs, L=g.cx-3.5*cs, B=g.cy+3.5*cs; ctx.setTransform(DPR,0,0,DPR,0,0);
     ctx.fillStyle='#000'; ctx.beginPath(); ctx.moveTo(sx,B+3); ctx.lineTo(sx-7,B+13); ctx.lineTo(sx+7,B+13); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(L-3,sy); ctx.lineTo(L-13,sy-7); ctx.lineTo(L-13,sy+7); ctx.closePath(); ctx.fill();
@@ -30,17 +31,23 @@ function drawBuild(){
     ctx.font='800 11px Figtree, system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText('balance',sx,B+15); }
 
   // parts
-  const att=attached(GS.design); LW=INK/cs;
+  const att=GS.lv.kind==='watch'?new Set(Object.keys(GS.design)):attached(GS.design); LW=INK/cs; // gears don't fall off; they just don't turn
   const look=[Math.sin(GS.t*.7)*.6,Math.sin(GS.t*.43)*.3], blink=(GS.t%3.7)<.12;
   const order=Object.keys(GS.design).sort((a,b)=>(GS.design[a].k==='balloon')-(GS.design[b].k==='balloon'));
   order.forEach(kk=>{ const c=GS.design[kk], [gx,gy]=kk.split(',').map(Number);
     ctx.setTransform(cs*DPR,0,0,-cs*DPR,DPR*(g.cx+(gx-3)*cs),DPR*(g.cy+(gy-3)*cs));
     const pu=GS.placed[kk]?Math.min(1,(now-GS.placed[kk])/380):1;
-    drawPart(c,{pop:RM?1:pu,alpha:att.has(kk)?1:.35,look,blink,bob:Math.sin(GS.t*2+gx),spin:c.k==='motor'||c.k==='wheel'?GS.t*.3:GS.t});
-    if(PARTS[c.k].rot&&c.k!=='screw'&&att.has(kk)){ // a small arrow showing the push
+    if(watch){ if(Gs.jams.has(kk)&&!RM) ctx.translate((Math.random()-.5)*.06,(Math.random()-.5)*.06); // jammed gears shake
+      drawPart(c,{pop:RM?1:pu,alpha:att.has(kk)?1:.35,look,blink,gear:true,scared:Gs.jam,spin:Gs.jam?0:(Gs.spd[kk]||0)*GS.t/6*TAU}); }
+    else drawPart(c,{pop:RM?1:pu,alpha:att.has(kk)?1:.35,look,blink,bob:Math.sin(GS.t*2+gx),spin:c.k==='motor'||c.k==='wheel'?GS.t*.3:GS.t});
+    if(PARTS[c.k].rot&&att.has(kk)&&!watch){ // a small arrow showing the push
       const [dx,dy]=DIRS[c.d]; ctx.save(); ctx.translate(dx*.62,dy*.62); ctx.rotate(Math.atan2(dy,dx)); ctx.beginPath(); ctx.moveTo(.13,0); ctx.lineTo(-.07,.1); ctx.lineTo(-.07,-.1); ctx.closePath(); ctx.fillStyle='#000'; ctx.fill(); ctx.restore(); }
   });
+  if(watch) order.forEach(kk=>{ const c=GS.design[kk]; if(!PARTS[c.k].rot) return; const [gx,gy]=kk.split(',').map(Number); // double gears: an arrow to the small side, over everything
+    ctx.setTransform(cs*DPR,0,0,-cs*DPR,DPR*(g.cx+(gx-3)*cs),DPR*(g.cy+(gy-3)*cs)); gearArrow(c.d); });
 }
+function gearArrow(d){ const [dx,dy]=DIRS[d]; ctx.save(); ctx.translate(dx*.36,dy*.36); ctx.rotate(Math.atan2(dy,dx));
+  ctx.beginPath(); ctx.moveTo(.2,0); ctx.lineTo(-.06,.15); ctx.lineTo(-.06,-.15); ctx.closePath(); ctx.fillStyle='#000'; ctx.fill(); ctx.lineWidth=LW*.8; ctx.strokeStyle='#fff'; ctx.stroke(); ctx.restore(); }
 function w2s(x,y){ const z=GS.cam.z; return [W/2+(x-GS.cam.x)*z+sh[0], H*.56-(y-GS.cam.y)*z+sh[1]]; }
 let sh=[0,0];
 function drawWorld(){
@@ -164,25 +171,25 @@ function drawBridgeRun(){ const S=GS.S, g=GS.view, cs=g.cs;
 }
 
 /* ---------- the pocket watch ---------- */
-function drawWatchRun(){ const S=GS.S, g=GS.view, cs=g.cs, s=cs*.6, cx=g.cx, cy=g.cy+cs*.95;
-  const th=S.nh?.55*Math.sin(TAU*S.t/S.T):0;
+function drawWatchRun(){ const S=GS.S, g=GS.view, cs=g.cs, h=watchHours(S), shake=S.jam&&!RM;
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  // the case
-  ctx.beginPath(); ctx.arc(cx,cy,3.75*s,0,TAU); ctx.lineWidth=INK*2; ctx.strokeStyle='#000'; ctx.stroke(); ctx.beginPath(); ctx.arc(cx,cy,3.55*s,0,TAU); ctx.lineWidth=1.2; ctx.stroke();
-  LW=INK; rr(cx-.3*s,cy-4.25*s,.6*s,.5*s,.12*s); ink(); ctx.beginPath(); ctx.arc(cx,cy-4.45*s,.35*s,Math.PI,TAU); ctx.lineWidth=INK; ctx.stroke();
-  // the balance wheel: everything you built, swinging around Pip
-  LW=INK/s; const lk=[Math.cos(th*2)*.8,0], blink=(GS.t%3.1)<.1;
-  S.P.forEach(p=>{ ctx.setTransform(s*DPR,0,0,-s*DPR,cx*DPR,cy*DPR); ctx.rotate(-th); ctx.translate(p.bx,p.by); drawPart(p,{look:lk,blink,scared:!S.nh&&S.t>.6}); });
-  GS.loose.forEach(L=>{ ctx.setTransform(s*DPR,0,0,-s*DPR,cx*DPR,cy*DPR); ctx.translate(L.x,L.y); ctx.rotate(L.a); drawPart(L.p,{alpha:.9}); });
-  // the two clocks: Pip's watch and the real time
+  // the movement: every gear turning at its own speed
+  LW=INK/cs; const blink=(GS.t%3.1)<.1, pa=-S.w*h*TAU; // Pip's minute hand, clockwise
+  const lk=[Math.sin(-pa)*.8,Math.cos(pa)*.6];
+  S.P.forEach(p=>{ let x=g.cx+p.bx*cs, y=g.cy-p.by*cs; if(shake&&S.jams.has(p.key)){ x+=(Math.random()-.5)*4; y+=(Math.random()-.5)*4; }
+    ctx.setTransform(cs*DPR,0,0,-cs*DPR,x*DPR,y*DPR); drawPart(p,{gear:true,look:lk,blink,scared:S.err==null&&S.t>.5,spin:p.spd*h*TAU}); });
+  S.P.forEach(p=>{ if(PARTS[p.k].rot){ ctx.setTransform(cs*DPR,0,0,-cs*DPR,(g.cx+p.bx*cs)*DPR,(g.cy-p.by*cs)*DPR); gearArrow(p.d); } });
+  if(S.err!=null){ // Pip's minute hand
+    ctx.setTransform(cs*DPR,0,0,-cs*DPR,g.cx*DPR,g.cy*DPR); ctx.rotate(pa);
+    ctx.beginPath(); ctx.moveTo(-.07,-.25); ctx.lineTo(0,1.55); ctx.lineTo(.07,-.25); ctx.closePath(); ctx.fillStyle='#000'; ctx.fill(); ctx.lineWidth=LW*.8; ctx.strokeStyle='#fff'; ctx.stroke(); }
+  // the two clocks, below the movement
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  const u=watchDay(S), start=10*3600+10*60, sign=S.rate>=0?1:-1, err=S.nh?S.err:0;
-  const real=S.t<WATCH.swing?Math.floor(S.t):WATCH.swing+u*K.day, pip=S.t<WATCH.swing?(S.nh?Math.floor(2*S.t/S.T)/2:0):WATCH.swing+u*K.day+sign*err*u;
-  const fast=u>.02&&u<.98, r=cs*.62, dy=g.cy-2.75*cs;
-  dial(cx-1.35*cs,dy,r,start+pip,'Pip’s watch',!fast);
-  dial(cx+1.35*cs,dy,r,start+real,'Real time',!fast);
-  if(S.nh&&S.t>=WATCH.swing){ ctx.font='800 13px Figtree, system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='alphabetic'; ctx.fillStyle='#000';
-    ctx.fillText((sign>0?'+':'−')+fmt('time',err*u).replace(' a day',''),cx-1.35*cs,dy+r+34); }
+  const u=watchDay(S), start=10*3600, real=h*3600, pip=S.err!=null?h*3600*S.w:0;
+  const r=Math.min(cs*.85,46), dy=g.cy+3.5*cs+r+16, fast=S.t>WATCH.hour+.1&&u<.98;
+  dial(g.cx-1.4*cs,dy,r,start+pip,'Pip\u2019s watch',!fast);
+  dial(g.cx+1.4*cs,dy,r,start+real,'Real time',!fast);
+  if(S.err!=null&&S.t>=WATCH.hour&&S.err>0){ ctx.font='800 13px Figtree, system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='alphabetic'; ctx.fillStyle='#000';
+    ctx.fillText((S.rate>0?'+':'\u2212')+fmt('time',S.err*u).replace(' a day',''),g.cx-1.4*cs,dy+r+36); }
 }
 function dial(x,y,r,secs,label,sec){ ctx.save(); ctx.translate(x,y);
   ctx.beginPath(); ctx.arc(0,0,r,0,TAU); ctx.fillStyle='#fff'; ctx.fill(); ctx.lineWidth=INK; ctx.strokeStyle='#000'; ctx.stroke();

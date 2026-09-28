@@ -11,7 +11,7 @@ function launch(){
     // loose parts start where they sat in the grid, relative to Pip
     const core=S.P.find(p=>p.k==='core'); GS.loose.forEach(L=>{ L.x=S.x+(L.p.bx-core.bx)+core.rx; L.y=S.y+(L.p.by-core.by)+core.ry; });
     GS.cam.x=S.x; GS.cam.y=S.y+2; GS.cam.z=baseZ();
-  } else if(S.kind==='watch') GS.loose=S.loose.map(p=>({p, x:p.bx, y:p.by, vx:(Math.random()-.5)*2, vy:1+Math.random()*2, a:0, w:(Math.random()-.5)*6}));
+  }
   $('dock').hidden=true; $('warn').textContent=''; showHint('');
   $('hsub').textContent=S.kind==='bridge'?'The traffic is coming.':S.kind==='watch'?'Tick, tock…':GOALS[lv.goal].low?'Gold is '+fmt(lv.goal,lv.marks[2])+' or less':'Target '+fmt(lv.goal,lv.marks[0]);
   $('costbox').hidden=true; $('live').hidden=false; setLive(S.kind==='machine'&&lv.goal==='soft'?0:null);
@@ -27,7 +27,8 @@ function finish(){
   const nextOpen=GS.li<LEVELS.length-1&&unlocked(GS.li+1);
   let why='';
   if(S.kind==='bridge') why=S.why==='all'?'Everything made it across.':S.car?'The '+S.car.V.name.toLowerCase()+' fell.':'';
-  else if(S.kind==='watch') why=!S.nh?'No hairspring, so it doesn’t tick.':(S.rate>=0?'It gains ':'It loses ')+fmt('time',Math.abs(S.rate))+(K.poise*S.off>=1?', plus '+fmt('time',K.poise*S.off).replace(' a day','')+' from being off balance.':'.');
+  else if(S.kind==='watch') why=S.jam?'The gears jammed.':S.why==='apart'?'Pip isn\u2019t joined to the mainspring.':
+    Math.abs(S.w-1)<1e-6?'Pip turns once an hour, right on time.':'Pip turns once every '+turnTime(S.w)+', so the watch '+(S.rate>0?'gains ':'loses ')+fmt('time',Math.abs(S.rate))+'.';
   else why=S.why==='canyon'?'Into the canyon.':S.noCargo?'The crate wasn’t joined on.':!S.P.some(p=>!PARTS[p.k].fixed)?'Pip needs some parts.':
     lv.start&&S.land==null?'Still in the air after 40 s.':lv.start&&m===0?'The egg cracked.':'';
   const head=m===3?'Gold!':m===2?'Silver!':m===1?'Bronze!':'Not yet';
@@ -105,13 +106,15 @@ function runBridge(dt){
 
 function runWatch(dt){
   const S=GS.S; stepWatch(S,dt);
-  // Pip's watch ticks every half swing; the real clock tocks every second
-  if(S.nh&&S.t<WATCH.swing){ const n=Math.floor(S.t/(S.T/2)); if(n>GS.ticks){ GS.ticks=n; blip(2200,.03,'square',.05); }
-    const s=Math.floor(S.t); if(s>GS.tocks){ GS.tocks=s; blip(700,.05,'triangle',.07); } }
-  if(S.nh&&S.t>=WATCH.swing&&GS.ticks>=0){ GS.ticks=-1; $('hsub').textContent='A day later…'; blip(300,.4,'triangle',.08,900); }
-  if(!S.nh&&S.t>.6&&GS.ticks===0){ GS.ticks=-1; callout('No tick'); }
-  setLive(S.nh?S.err*watchDay(S):null);
-  GS.loose.forEach(L=>{ L.vy-=G*dt; L.x+=L.vx*dt; L.y+=L.vy*dt; L.a+=L.w*dt; });
+  if(S.err==null){ if(S.t>.5&&!GS.ticks){ GS.ticks=1; callout(S.jam?'Jammed!':'Not joined'); blip(120,.3,'square',.1,60); buzz(30); } setLive(null); return; }
+  // the first hour: Pip's watch clicks every 5 minutes it shows, the real clock every 5 real minutes
+  if(S.t<WATCH.hour){ const h=S.t/WATCH.hour, n=Math.floor(h*S.w*12), m=Math.floor(h*12);
+    if(n>GS.ticks){ GS.ticks=n; blip(2000,.03,'square',.05); } if(m>GS.tocks){ GS.tocks=m; blip(700,.05,'triangle',.07); } }
+  else if(GS.tocks>=0){ GS.tocks=-1; $('hsub').textContent='A day later\u2026'; blip(300,.4,'triangle',.08,900); }
+  setLive(S.err*watchDay(S));
 }
+// hours shown so far: the first hour in real time, then the rest of the day in fast-forward
+function watchHours(S){ return S.t<WATCH.hour?S.t/WATCH.hour:1+23*watchDay(S); }
+function turnTime(w){ const m=60/Math.abs(w); return m<120?Math.round(m)+' min':Math.round(m/6)/10+' h'; }
 // how far through the fast-forwarded day we are, eased in and out
-function watchDay(S){ const u=clamp((S.t-WATCH.swing)/WATCH.day,0,1); return u*u*(3-2*u); }
+function watchDay(S){ const u=clamp((S.t-WATCH.hour)/WATCH.day,0,1); return u*u*(3-2*u); }

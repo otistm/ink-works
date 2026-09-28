@@ -5,11 +5,10 @@ cv.addEventListener('pointerdown',e=>{
   if(GS.mode!=='build') return; audioInit(); const c=cellAt(e.clientX,e.clientY); if(!c) return;
   const kk=c.join(','), cur=GS.design[kk], lv=GS.lv, tool=GS.tool;
   if(cur&&PARTS[cur.k].fixed){ GS.placed[kk]=performance.now(); blip(300,.1,'sine',.1,420);
-    if(cur.k==='core') showHint(tool==='erase'?'Pip stays. Pip is the pilot.':lv.kind==='watch'?'That\u2019s Pip. The wheel turns around Pip.':'That\u2019s Pip, your pilot.');
-    else if(cur.k==='egg') showHint('The egg stays. Don\u2019t crack it.'); else if(cur.k==='road') showHint('The road stays. Build around it.'); return; }
+    if(cur.k==='core') showHint(tool==='erase'?'Pip stays. Pip is the pilot.':lv.kind==='watch'?'That\u2019s Pip, the centre wheel. Pip carries the minute hand.':'That\u2019s Pip, your pilot.');
+    else if(cur.k==='egg') showHint('The egg stays. Don\u2019t crack it.'); else if(cur.k==='spring') showHint('The mainspring stays. It turns once in 12 hours.'); else if(cur.k==='road') showHint('The road stays. Build around it.'); return; }
   if(tool==='erase'){ if(cur){ delete GS.design[kk]; puffAtCell(c); blip(240,.12,'triangle',.12,140); buzz(8); } }
-  else if(cur&&cur.k===tool){ if(PARTS[tool].rot){ cur.d=(cur.d+3)%4; GS.placed[kk]=performance.now(); blip(700,.07,'square',.05,900); buzz(5);
-    if(tool==='screw') showHint(['Screwed all the way in.','Out 1 turn: a little slower.','Out 2 turns: slower.','Out 3 turns: slowest.'][screwOut(cur.d)]); } }
+  else if(cur&&cur.k===tool){ if(PARTS[tool].rot){ cur.d=(cur.d+3)%4; GS.placed[kk]=performance.now(); blip(700,.07,'square',.05,900); buzz(5); } }
   else { const cost=designCost(GS.design)-(cur?PARTS[cur.k].cost:0)+PARTS[tool].cost;
     if(cost>lv.budget){ GS.nope=performance.now(); blip(150,.18,'square',.07); $('costbox').classList.remove('nope'); void $('costbox').offsetWidth; $('costbox').classList.add('nope'); showHint('Over budget. Remove a part to free some up.'); return; }
     GS.design[kk]={k:tool,d:defaultDir(lv,tool)}; GS.placed[kk]=performance.now(); blip(420+Math.random()*80,.09,'triangle',.14,760); buzz(10); }

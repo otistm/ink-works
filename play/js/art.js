@@ -12,6 +12,7 @@ function drawPart(p,o){
   const rotTo=d=>ctx.rotate((d-1)*Math.PI/2); // local +y becomes the part's direction
   if(k==='frame'){ rr(-.5,-.5,1,1,.04); ink(); ctx.lineWidth=LW*.6; ctx.globalAlpha*=.55; ctx.beginPath(); ctx.moveTo(-.36,-.36); ctx.lineTo(.36,.36); ctx.moveTo(-.36,.36); ctx.lineTo(.36,-.36); ctx.stroke(); }
   else if(k==='core'){
+    if(o.gear){ ctx.save(); ctx.rotate(-(o.spin||0)); gear(.62,14,true); ctx.restore(); }
     ctx.lineWidth=LW; ctx.beginPath(); ctx.moveTo(0,.46); ctx.quadraticCurveTo(.02,.62,.12,.66); ctx.stroke(); ctx.beginPath(); ctx.arc(.13,.66,.055,0,TAU); ctx.fillStyle='#000'; ctx.fill();
     rr(-.47,-.47,.94,.94,.24); ink();
     const lk=o.look||[0,0], bl=o.blink?.02:.15;
@@ -67,15 +68,20 @@ function drawPart(p,o){
   else if(k==='steel'){ ctx.beginPath(); ctx.moveTo(-.46,.2); ctx.lineTo(.46,.2); ctx.lineTo(.46,.1); ctx.lineTo(.07,.1); ctx.lineTo(.07,-.1); ctx.lineTo(.46,-.1); ctx.lineTo(.46,-.2); ctx.lineTo(-.46,-.2); ctx.lineTo(-.46,-.1); ctx.lineTo(-.07,-.1); ctx.lineTo(-.07,.1); ctx.lineTo(-.46,.1); ctx.closePath(); ink('#000'); }
   else if(k==='cable'){ ctx.lineWidth=LW*.8; for(let i=0;i<3;i++){ ctx.beginPath(); ctx.ellipse(0,0,.38-i*.1,.3-i*.08,0,0,TAU); ctx.stroke(); } ctx.beginPath(); ctx.moveTo(.38,0); ctx.lineTo(.48,-.3); ctx.stroke(); }
   else if(k==='road'){ rr(-.5,-.14,1,.28,.03); ink(); ctx.lineWidth=LW*.7; ctx.setLineDash([.12,.1]); ctx.beginPath(); ctx.moveTo(-.4,0); ctx.lineTo(.4,0); ctx.stroke(); ctx.setLineDash([]); }
-  else if(k==='spoke'){ ctx.beginPath(); ctx.rect(-.5,-.06,1,.12); ctx.rect(-.06,-.5,.12,1); ink('#000'); ctx.beginPath(); ctx.arc(0,0,.13,0,TAU); ink(); }
-  else if(k==='rim'){ ctx.beginPath(); ctx.arc(0,0,.42,0,TAU); ink(); ctx.save(); ctx.beginPath(); ctx.arc(0,0,.42,0,TAU); hatchFill(); ctx.restore();
-    ctx.beginPath(); ctx.arc(0,0,.42,0,TAU); ctx.lineWidth=LW; ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,.16,0,TAU); ink(); }
-  else if(k==='screw'){ const out=screwOut(p.d||0); ctx.beginPath(); ctx.arc(0,0,.2+out*.03,0,TAU); ink(); ctx.save(); ctx.rotate(out*Math.PI/4+.4); ctx.lineWidth=LW*1.1; ctx.beginPath(); ctx.moveTo(-.15,0); ctx.lineTo(.15,0); ctx.stroke(); ctx.restore();
-    for(let i=0;i<out;i++){ ctx.beginPath(); ctx.arc(-.12+i*.12,-.34,.035,0,TAU); ctx.fillStyle='#000'; ctx.fill(); } }
-  else if(k==='hair'){ ctx.lineWidth=LW*.75; ctx.beginPath(); for(let a=0;a<TAU*3.2;a+=.15){ const r=.04+a*.019; ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r); } ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,.05,0,TAU); ctx.fillStyle='#000'; ctx.fill(); }
+  else if(k==='gear'){ ctx.rotate(-(o.spin||0)); gear(.47,12); }
+  else if(k==='dbl2'||k==='dbl3'){ ctx.rotate(-(o.spin||0)); if(k==='dbl3'){ gear(.5,16,true); } else gear(.47,12); gear(.25,7,k==='dbl2'); }
+  else if(k==='spring'){ ctx.save(); ctx.rotate(-(o.spin||0)); gear(.5,20); ctx.beginPath(); ctx.arc(0,0,.36,0,TAU); ink(); ctx.lineWidth=LW*.6; ctx.beginPath();
+    for(let a=0;a<TAU*3;a+=.12){ const r=.06+a*.015; ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r); } ctx.stroke(); ctx.restore(); }
   else if(k==='erase'){ ctx.lineWidth=LW*1.3; ctx.beginPath(); ctx.moveTo(-.3,-.3); ctx.lineTo(.3,.3); ctx.moveTo(-.3,.3); ctx.lineTo(.3,-.3); ctx.stroke(); }
   ctx.restore();
 }
+// a gear of radius r with n teeth, centred on the origin; hatched if shaded
+function gear(r,n,shaded){ const d=r*.2; ctx.beginPath();
+  for(let i=0;i<n;i++){ const a=i/n*TAU, w=TAU/n; [[a,r-d],[a+w*.12,r],[a+w*.45,r],[a+w*.57,r-d]].forEach(([b,rr],j)=>ctx.lineTo(Math.cos(b)*rr,Math.sin(b)*rr)); }
+  ctx.closePath(); ink(); if(shaded){ ctx.save(); hatchFill(); ctx.restore(); ctx.lineWidth=LW; ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(0,0,r*.55,0,TAU); ctx.lineWidth=LW*.6; ctx.stroke();
+  ctx.lineWidth=LW*.8; ctx.beginPath(); for(let i=0;i<4;i++){ const a=i/4*TAU+.4; ctx.moveTo(Math.cos(a)*r*.18,Math.sin(a)*r*.18); ctx.lineTo(Math.cos(a)*r*.55,Math.sin(a)*r*.55); } ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,0,Math.max(.05,r*.18),0,TAU); ink('#000'); }
 // draw a part as a little icon onto a small canvas (the tray)
 function iconCanvas(k,size){ const s=size||40, c=document.createElement('canvas'); c.width=c.height=Math.round(s*DPR); c.style.width=c.style.height=s+'px';
   const real=ctx; ctx=c.getContext('2d'); const sc=k==='wheel'?.5:.62;

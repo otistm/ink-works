@@ -21,15 +21,15 @@ const PARTS={
   wood:   {name:'Wood',      cost:5,  mass:.15, desc:'Cheap and light. Joins to every part it touches, even at a corner.'},
   steel:  {name:'Steel',     cost:15, mass:.35, desc:'Three times as strong as wood, but heavy.'},
   cable:  {name:'Cable',     cost:5,  mass:.04, desc:'Strong, but it can only pull. Hang things from it.'},
-  // watch parts: Pip is the axle of the balance wheel
-  spoke:  {name:'Spoke',     cost:2,  mass:.1,  desc:'Light. Joins weights to the middle.'},
-  rim:    {name:'Weight',    cost:10, mass:1,   desc:'Heavy. The further out it sits, the slower the swing.'},
-  screw:  {name:'Screw',     cost:3,  mass:.035, rot:true, desc:'For fine tuning. Tap it again to screw it in or out a little.'},
-  hair:   {name:'Hairspring',cost:15, mass:.01, desc:'Springs the wheel back. More springs, faster swing.'}
+  // watch parts: gears that touch side by side turn each other; Pip is the centre wheel with the minute hand
+  spring: {name:'Mainspring',cost:0,  mass:0,   fixed:true, desc:'Powers the watch. It turns once every 12 hours.'},
+  gear:   {name:'Gear',      cost:3,  mass:0,   desc:'Passes the turn along. Gears that touch turn each other.'},
+  dbl2:   {name:'2× gear', cost:8, mass:0, rot:true, desc:'A big gear with a small one on top. Drive the small side (the arrow) and the next gear turns 2× faster. Tap it again to turn it.'},
+  dbl3:   {name:'3× gear', cost:10, mass:0, rot:true, desc:'Like the 2× gear, but 3×. Drive the small side (the arrow) to speed up.'}
 };
 const K={ rocketF:70, rocketBurn:1.5, tankFuel:5, fuelMass:.22, motorF:34, motorVmax:40, battery:8, propF:24, propVmax:32,
   balloonF:16, balloonTop:150, cd:.018, noseCut:.45, cl:.34, wheelR:.6, chute:.3,
-  hair:352, screwStep:.05, tick:1, poise:3000, day:86400 };
+  day:86400 };
 const DIRS=[[1,0],[0,1],[-1,0],[0,-1]]; // 0 right, 1 up, 2 left, 3 down (body frame, y up)
 
 // terrain: height at x, and its slope
@@ -60,8 +60,8 @@ const LEVELS=[
    blurb:'Heavier and heavier trucks will cross. Keep it standing.', hint:'Triangles are strong. Parts touching at a corner are joined too.'},
   {id:'glide', name:'First flight', goal:'dist',  marks:[120,220,300], budget:130, parts:['frame','wheel','battery','prop','wing','nose'],
    blurb:'Take off and fly far.', hint:'Propellers need speed before the wings can lift you. Roll out on wheels.'},
-  {id:'watch', name:'Pocket watch', goal:'time',  marks:[600,180,45],   budget:80,  parts:['spoke','rim','screw','hair'], kind:'watch',
-   blurb:'Make Pip’s watch keep good time.', hint:'Pip is the axle. It should swing once a second. Keep it balanced.'},
+  {id:'watch', name:'Pocket watch', goal:'time',  marks:[43200,28800,60], budget:40, parts:['gear','dbl2','dbl3'], kind:'watch', fixed:{'0,6':'spring'},
+   blurb:'Pip carries the minute hand. Make Pip turn once an hour.', hint:'Join the mainspring to Pip with gears. It turns once in 12 hours, so speed it up 12×.'},
   {id:'sky',   name:'Sky high',     goal:'alt',   marks:[240,300,340], budget:160, parts:['frame','rocket','fuel','nose','wing','balloon'],
    blurb:'Go as high as you dare.', hint:'Fuel is heavy and every part drags. The air thins as you climb.'},
   {id:'flats', name:'Salt flats',   goal:'speed', marks:[120,160,190], budget:170, parts:['frame','wheel','motor','battery','rocket','fuel','nose','wing'],
@@ -260,35 +260,42 @@ function stepBridge(S,dt){
 function clamp01(v){ return v<0?0:v>1?1:v; }
 
 // ---------- the pocket watch ----------
-// Pip is the axle of a balance wheel. It swings with a period of 2π√(I/κ): I is how the weight is spread
-// around the axle, κ is how stiff the hairsprings are. A watch that isn't balanced on its axle also runs badly.
-function makeWatchSim(design,lv){
-  const att=attached(design), P=[], loose=[];
-  for(const key in design){ const [gx,gy]=key.split(',').map(Number), c=design[key];
-    (att.has(key)?P:loose).push({k:c.k,d:c.d||0,gx,gy,bx:gx-3,by:-(gy-3),m:PARTS[c.k].mass,key}); }
-  let M=0,mx=0,my=0,I=0,nh=0;
-  P.forEach(p=>{ let x=p.bx, y=p.by, r=Math.hypot(x,y);
-    if(p.k==='screw'&&r>0){ const out=screwOut(p.d)*K.screwStep; x+=x/r*out; y+=y/r*out; } // each tap screws it a little further out
-    M+=p.m; mx+=p.m*x; my+=p.m*y; I+=p.m*(x*x+y*y+1/6); if(p.k==='hair') nh++; });
-  const off=Math.hypot(mx,my)/M, T=nh?2*Math.PI*Math.sqrt(I/(K.hair*nh)):0;
-  const rate=nh?K.day*(K.tick/T-1):0; // seconds gained (+) or lost (-) in a day
-  const err=nh?Math.abs(rate)+K.poise*off:null;
-  return {kind:'watch',dt:1/60,lv,P,loose,I,T,off,rate,err,nh,t:0,done:false,why:nh?'':'nohair'};
+// Gears that touch side by side mesh and turn each other the other way round. A gear's speed times its teeth
+// is passed on, so a big gear turns a small one faster. Double gears have a big and a small gear on one axle:
+// the small one faces the arrow. The mainspring turns once in 12 hours; Pip, the centre wheel, should turn once an hour.
+const GEARS={core:{teeth:20}, spring:{teeth:40}, gear:{teeth:20}, dbl2:{teeth:20,pin:10}, dbl3:{teeth:30,pin:10}};
+const SPRING_TURN=1/12; // turns an hour
+function faceTeeth(c,dir){ const T=GEARS[c.k]; return T.pin!=null&&dir===c.d?T.pin:T.teeth; }
+function gearSpeeds(d){ // turns an hour for every gear the mainspring reaches (+ is clockwise), and whether they jam
+  const spd={}, from=Object.keys(d).find(k=>d[k].k==='spring'); let jam=false; const jams=new Set();
+  if(!from) return {spd,jam,jams};
+  spd[from]=SPRING_TURN; const q=[from];
+  while(q.length){ const key=q.shift(), [x,y]=key.split(',').map(Number);
+    [[1,0,0],[0,-1,1],[-1,0,2],[0,1,3]].forEach(([dx,dy,dir])=>{ const k2=(x+dx)+','+(y+dy), c2=d[k2]; if(!c2||!GEARS[c2.k]) return;
+      const w=-spd[key]*faceTeeth(d[key],dir)/faceTeeth(c2,(dir+2)%4);
+      if(spd[k2]==null){ spd[k2]=w; q.push(k2); } else if(Math.abs(spd[k2]-w)>1e-9*Math.max(1,Math.abs(w))){ jam=true; jams.add(k2); jams.add(key); } }); }
+  return {spd,jam,jams};
 }
-function screwOut(d){ return (4-d)%4; } // taps turn d 0,3,2,1: 0 to 3 steps out
-const WATCH={swing:3, day:4.5}; // seconds of real-time swinging, then seconds for the fast-forwarded day
-function stepWatch(S,dt){ if(S.done) return; S.t+=dt; if(S.t>=(S.nh?WATCH.swing+WATCH.day+.4:2)) S.done=true; }
+function makeWatchSim(design,lv){
+  const G=gearSpeeds(design), w=G.spd['3,3'];
+  const P=Object.keys(design).map(key=>{ const [gx,gy]=key.split(',').map(Number), c=design[key]; return {k:c.k,d:c.d||0,gx,gy,bx:gx-3,by:-(gy-3),key,spd:G.jam?0:(G.spd[key]||0)}; });
+  const ok=!G.jam&&w!=null;
+  const rate=ok?K.day*(w-1):0; // seconds Pip's watch gains (+) or loses (-) in a day
+  return {kind:'watch',dt:1/60,lv,P,loose:[],w:ok?w:0,rate,err:ok?Math.abs(rate):null,jam:G.jam,jams:G.jams,t:0,done:false,why:G.jam?'jam':w==null?'apart':''};
+}
+const WATCH={hour:3, day:4.5}; // seconds to show the first hour, then seconds for the fast-forwarded day
+function stepWatch(S,dt){ if(S.done) return; S.t+=dt; if(S.t>=(S.err!=null?WATCH.hour+WATCH.day+.4:2.2)) S.done=true; }
 
 // ---------- all kinds ----------
 function makeAny(design,lv){ return lv.kind==='bridge'?makeBridgeSim(design,lv):lv.kind==='watch'?makeWatchSim(design,lv):makeSim(design,lv); }
 function stepAny(S,dt){ S.kind==='bridge'?stepBridge(S,dt):S.kind==='watch'?stepWatch(S,dt):stepSim(S,dt); }
-function attachedAny(d,lv){ return lv.kind==='bridge'?attachedBridge(d):attached(d); }
+function attachedAny(d,lv){ return lv.kind==='bridge'?attachedBridge(d):lv.kind==='watch'?new Set(Object.keys(gearSpeeds(d).spd)):attached(d); }
 function scoreOf(S){ const g=S.lv.goal;
   if(S.kind==='bridge') return S.load; if(S.kind==='watch') return S.done?S.err:null;
   return g==='soft'?S.land:S.best[g]; }
 function medalFor(lv,v){ if(v==null) return 0; const m=lv.marks;
   if(GOALS[lv.goal].low) return v<=m[2]?3:v<=m[1]?2:v<=m[0]?1:0;
   return v>=m[2]?3:v>=m[1]?2:v>=m[0]?1:0; }
-function better(lv,v,best){ if(v==null) return false; if(!best) return true; return GOALS[lv.goal].low?v<best:v>best; }
+function better(lv,v,best){ if(v==null) return false; if(!best) return true; return GOALS[lv.goal].low?Math.max(v,.001)<best:v>best; } // a perfect 0 is saved as .001
 function runToEnd(design,lv){ const S=makeAny(design,lv); let i=0; while(!S.done&&i<45/S.dt){ stepAny(S,S.dt); i++; } return S; }
-if(typeof module!=='undefined') module.exports={PARTS,LEVELS,GOALS,K,BEAM,VEHICLES,ROAD,makeSim,stepSim,makeAny,stepAny,runToEnd,scoreOf,better,newDesign,attached,attachedAny,designCost,medalFor,terrain,DIRS,GW,GH};
+if(typeof module!=='undefined') module.exports={PARTS,LEVELS,GOALS,K,gearSpeeds,BEAM,VEHICLES,ROAD,makeSim,stepSim,makeAny,stepAny,runToEnd,scoreOf,better,newDesign,attached,attachedAny,designCost,medalFor,terrain,DIRS,GW,GH};

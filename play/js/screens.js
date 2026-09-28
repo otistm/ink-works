@@ -39,6 +39,7 @@ function showHome(){
 function startBuild(i){
   GS.li=i; GS.lv=LEVELS[i]; const r=rec(GS.lv.id); $('costbox').hidden=false; $('live').hidden=true;
   GS.design=r.design?JSON.parse(JSON.stringify(r.design)):newDesign(GS.lv);
+  for(const kk in GS.design) if(!PARTS[GS.design[kk].k]) delete GS.design[kk]; // a part that no longer exists
   const base=newDesign(GS.lv); for(const kk in base) GS.design[kk]=base[kk];
   GS.placed={}; GS.tool=GS.lv.parts[0]; GS.fx=[]; GS.S=null; GS.mode='build'; closeCard(); setHud(true); buildTray(); refreshBuild(); showHint(GS.lv.hint);
 }
@@ -58,6 +59,7 @@ function refreshBuild(){
   $('marks').innerHTML=lv.marks.map((m,i)=>`<span>${medalSVG(i+1,20)}${fmt(lv.goal,m)}</span>`).join('')+(rec(lv.id).best?`<span class="best">Best ${fmt(lv.goal,rec(lv.id).best)}</span>`:'');
   const k=GS.tool; $('info').innerHTML=k==='erase'?'<b>Remove</b> Tap a part to take it off and get its cost back.':`<b>${PARTS[k].name}</b> ${PARTS[k].desc}`;
   const att=attachedAny(GS.design,lv), loose=Object.keys(GS.design).filter(kk=>!att.has(kk)).length, to=lv.kind==='bridge'?'the bridge':'Pip';
+  if(lv.kind==='watch'){ const Gs=gearSpeeds(GS.design); $('warn').textContent=Gs.jam?'The gears are jammed: two of them are trying to turn at different speeds.':Gs.spd['3,3']==null?'Pip isn\u2019t joined to the mainspring yet.':''; return; }
   $('warn').textContent=loose?(loose===1?`1 part isn\u2019t joined to ${to}. It will fall off.`:`${loose} parts aren\u2019t joined to ${to}. They will fall off.`):'';
 }
 let hintT=0; function showHint(t){ const h=$('hint'); if(!t){ h.hidden=true; return; } $('hintT').textContent=t; h.hidden=false; clearTimeout(hintT); hintT=setTimeout(()=>h.hidden=true,6500); }

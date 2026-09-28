@@ -3,9 +3,9 @@
 // still be won within the budget. Run it after changing parts, physics numbers or medal marks.
 const E = require('../play/js/engine.js');
 const KEY = { P:'core', F:'frame', W:'wheel', M:'motor', B:'battery', R:'rocket', T:'fuel', N:'nose', V:'wing', O:'prop', A:'balloon', C:'crate',
-  U:'chute', G:'egg', Q:'road', D:'wood', S:'steel', L:'cable', I:'spoke', Z:'rim', Y:'screw', H:'hair' };
+  U:'chute', G:'egg', Q:'road', D:'wood', S:'steel', L:'cable', K:'spring', E:'gear', X:'dbl2', Y:'dbl3' };
 // One gold build per level: 7 rows of the bench, top to bottom. Directions: 0 right, 1 up, 2 left, 3 down.
-// (A screw's direction is how far it's screwed out: 0 in, 3, 2, 1 out.)
+// (A double gear's direction is the side its small gear faces.)
 const GOLD = {
   roll:  { rows:['.......','.......','.......','..BPB..','..WMW..','.......','.......'] },
   dash:  { rows:['.......','.......','..BB...','.MMPMN.','.W...W.','.......','.......'], dirs:{'5,3':0} },
@@ -15,7 +15,7 @@ const GOLD = {
   leap:  { rows:['.......','.......','.......','.RTPN..','..W.W..','.......','.......'], dirs:{'1,3':0,'4,3':0} },
   bridge:{ rows:['.......','.......','.......','QQQQQQQ','DDDDDDD','DDDDDDD','.......'] },
   glide: { rows:['.......','.......','..VV...','OBBPN..','.W.W...','.......','.......'], dirs:{'0,3':0,'4,3':0} },
-  watch: { rows:['.......','.......','..Y....','.ZIPIZ.','...HY..','.......','.......'], dirs:{'2,2':2,'4,4':2} },
+  watch: { rows:['.......','.......','.......','YEEP...','E......','X......','K......'], dirs:{'0,5':3,'0,3':3} },
   sky:   { rows:['...N...','...P...','..TTT..','..R.R..','.......','.......','.......'], dirs:{'3,0':1,'2,3':1,'4,3':1} },
   flats: { rows:['.......','.......','RR.....','RTPN...','RWW....','.......','.......'], dirs:{'0,2':0,'1,2':0,'0,3':0,'0,4':0,'3,3':0} }
 };

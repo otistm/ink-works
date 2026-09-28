@@ -48,7 +48,7 @@ It's a simple 2D rigid body: weight, thrust, air drag, wing lift, balloon lift, 
 ## Other kinds of machine
 Most levels are vehicles (`makeSim`). A level's `kind` can also be:
 - `bridge` (The bridge): no Pip. The road row is fixed. Every part is a joint, and joints that touch, side by side or corner to corner, are joined by a beam (`BEAM` holds each material's strength and give). Cables only pull. Beams are bolted firmly into the cliffs. A bike, car, van and truck (`VEHICLES`) cross in turn. The score is the heaviest that made it across.
-- `watch` (Pocket watch): Pip is the axle of a balance wheel. Its swing time is 2π√(weight spread / hairspring stiffness), and it should be 1 s. The score is seconds off per day, plus a penalty for being off balance. Tapping a screw again screws it further out, for fine tuning.
+- `watch` (Pocket watch): a gear train. Gears touching side by side mesh (`gearSpeeds`): speed × teeth passes on, so only double gears (`dbl2`, `dbl3`, small side facing their direction) change the overall ratio. The fixed mainspring turns once in 12 h; Pip, the centre wheel with the minute hand, must turn once an hour. Gears that disagree jam. The score is time gained or lost per day.
 - The egg drop is a vehicle level with `start` (a drop height) and the goal `soft` (landing speed).
 `makeAny`, `stepAny` and `scoreOf` pick the right one. Goals with `low:true` in `GOALS` (landing speed, watch error) are better when smaller.
 
@@ -81,7 +81,7 @@ Progress is kept in the browser's localStorage under `inkworks-save`: `{ v, lv: 
 ## Smoke test
 - The front page shows the rocket launching and a Play button that opens `/play/`.
 - The machines list shows eleven machines; only First roll is open, the rest say how to open them.
-- Egg drop: parachutes open as you fall; a hard landing calls "Crack!". Bridge: two rows of wood under the road carry the truck; the road alone sags and only the bike gets across. Watch: two weights, a hairspring and a balanced pair of screws turned out twice wins gold.
+- Egg drop: parachutes open as you fall; a hard landing calls "Crack!". Bridge: two rows of wood under the road carry the truck; the road alone sags and only the bike gets across. Watch: gears turn on the bench as you build; the gold build in tools/check.js (a 2× and a 3× gear, small sides facing the spring) makes Pip turn once an hour.
 - In First roll: tap Battery, tap beside Pip; tap Wheel, tap below; the budget number goes up, the balance pointers move. Tapping over budget shakes the number and explains.
 - Launch: the machine squashes, "Go!" pops, it drives off with dust. Passing a mark calls out "Bronze!" and so on.
 - The result card shows the distance, the medal board and the buttons; the next machine opens after a medal; everything is still there after a refresh.
