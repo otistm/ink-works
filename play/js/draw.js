@@ -4,7 +4,7 @@
 function draw(){
   ctx.setTransform(DPR,0,0,DPR,0,0); ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
   if(GS.mode==='build') drawBuild();
-  else if(GS.mode==='run'||GS.mode==='done') drawWorld();
+  else if(GS.mode==='run'||GS.mode==='done') GS.S.kind==='bridge'?drawBridgeRun():GS.S.kind==='watch'?drawWatchRun():drawWorld();
   else drawHomeBg();
   // screen-space puffs (build)
   GS.fx.filter(f=>f.screen).forEach(f=>{ const u=f.t/f.life, r=f.r+f.g*Math.sqrt(u); ctx.setTransform(DPR,0,0,DPR,0,0); ctx.globalAlpha=1-u; ctx.beginPath(); ctx.arc(f.sx,f.sy-u*10,r,0,TAU); ctx.fillStyle='#fff'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#000'; ctx.stroke(); ctx.globalAlpha=1; });
@@ -19,6 +19,8 @@ function drawBuild(){
   for(let x=0;x<GW;x++) for(let y=0;y<GH;y++){ const sx=g.cx+(x-3.5)*cs, sy=g.cy+(y-3.5)*cs; ctx.strokeRect(sx+.5,sy+.5,cs-1,cs-1); }
   ctx.restore(); ctx.save(); ctx.fillStyle='#000'; ctx.globalAlpha=.35;
   for(let x=0;x<=GW;x++) for(let y=0;y<=GH;y++){ ctx.beginPath(); ctx.arc(g.cx+(x-3.5)*cs,g.cy+(y-3.5)*cs,1.4,0,TAU); ctx.fill(); } ctx.restore();
+  if(GS.lv.kind==='bridge'){ GS.view=g; const B=bridgeGraph(GS.design), att=attachedBridge(GS.design);
+    drawBridge(B.nodes.map(n=>({k:n.k,x:n.x,y:-n.y,gx:n.x,gy:n.y})),B.links,{att,placed:GS.placed,now}); return; }
   // balance point: little pointers on the bench edges, and a faint dot
   const S=makeSim(GS.design,GS.lv); if(S.P.length>1){ const core=S.P.find(p=>p.k==='core');
     const bx=core.bx-core.rx, by=core.by-core.ry; const sx=g.cx+bx*cs, sy=g.cy-by*cs, L=g.cx-3.5*cs, B=g.cy+3.5*cs; ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -35,7 +37,7 @@ function drawBuild(){
     ctx.setTransform(cs*DPR,0,0,-cs*DPR,DPR*(g.cx+(gx-3)*cs),DPR*(g.cy+(gy-3)*cs));
     const pu=GS.placed[kk]?Math.min(1,(now-GS.placed[kk])/380):1;
     drawPart(c,{pop:RM?1:pu,alpha:att.has(kk)?1:.35,look,blink,bob:Math.sin(GS.t*2+gx),spin:c.k==='motor'||c.k==='wheel'?GS.t*.3:GS.t});
-    if(PARTS[c.k].rot&&att.has(kk)){ // a small arrow showing the push
+    if(PARTS[c.k].rot&&c.k!=='screw'&&att.has(kk)){ // a small arrow showing the push
       const [dx,dy]=DIRS[c.d]; ctx.save(); ctx.translate(dx*.62,dy*.62); ctx.rotate(Math.atan2(dy,dx)); ctx.beginPath(); ctx.moveTo(.13,0); ctx.lineTo(-.07,.1); ctx.lineTo(-.07,-.1); ctx.closePath(); ctx.fillStyle='#000'; ctx.fill(); ctx.restore(); }
   });
 }
@@ -53,9 +55,11 @@ function drawWorld(){
         const sx=W/2+(cx-cxm)*pz, sy=H*.56-(cy-cym)*pz; if(sy<-80||sy>H+80) return; cloud(sx,sy,s*pz); }); } }
   // height lines for height goals, finish posts for distance goals
   ctx.font='800 12px Figtree, system-ui, sans-serif'; ctx.textBaseline='middle';
-  if(lv.goal==='alt'){ lv.marks.forEach((m,i)=>{ const [,sy]=w2s(0,S.y0+m); if(sy<-10||sy>H+10) return; ctx.save(); ctx.setLineDash([6,6]); ctx.lineWidth=1.5; ctx.strokeStyle='#000'; ctx.globalAlpha=.5; ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(W,sy); ctx.stroke(); ctx.restore(); flagLabel(W-12,sy,i+1,m+' m','right'); });
-    // ruler
-    ctx.save(); ctx.strokeStyle='#000'; ctx.fillStyle='#000'; ctx.lineWidth=1.5; const step=10; for(let a=Math.floor((yBot-S.y0)/step)*step;a<yTop-S.y0;a+=step){ if(a<0) continue; const [,sy]=w2s(0,S.y0+a); const big=a%50===0; ctx.globalAlpha=big?.8:.35; ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(big?16:8,sy); ctx.stroke(); if(big&&a>0){ ctx.textAlign='left'; ctx.fillText(a+' m',20,sy); } } ctx.restore(); }
+  if(lv.goal==='alt') lv.marks.forEach((m,i)=>{ const [,sy]=w2s(0,S.y0+m); if(sy<-10||sy>H+10) return; ctx.save(); ctx.setLineDash([6,6]); ctx.lineWidth=1.5; ctx.strokeStyle='#000'; ctx.globalAlpha=.5; ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(W,sy); ctx.stroke(); ctx.restore(); flagLabel(W-12,sy,i+1,m+' m','right'); });
+  if(lv.goal==='alt'||lv.start){ // a height ruler, from the start (or, for a drop, from the ground)
+    const y0=lv.start?0:S.y0, big=lv.start?20:50;
+    ctx.save(); ctx.strokeStyle='#000'; ctx.fillStyle='#000'; ctx.lineWidth=1.5; const step=10; for(let a=Math.floor((yBot-y0)/step)*step;a<yTop-y0;a+=step){ if(a<0) continue; const [,sy]=w2s(0,y0+a); const b=a%big===0; ctx.globalAlpha=b?.8:.35; ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(b?16:8,sy); ctx.stroke(); if(b&&a>0){ ctx.textAlign='left'; ctx.fillText(a+' m',20,sy); } } ctx.restore(); }
+  if(lv.start) dropTower(S);
   if(lv.goal==='dist') lv.marks.forEach((m,i)=>{ const x=S.x0+m, [sx,sy]=w2s(x,Math.max(0,T.h(x))); if(sx<-40||sx>W+40) return; ctx.save(); ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx,sy-70); ctx.stroke(); ctx.restore(); flagLabel(sx,sy-78,i+1,m+' m','center'); });
   // ground
   ctx.beginPath(); let first=true; const stp=.5;
@@ -81,11 +85,12 @@ function drawWorld(){
   if(GS.pre>0){ const u=1-GS.pre/.55; sqy=1-.12*Math.sin(u*Math.PI*.5); sqx=1+.08*Math.sin(u*Math.PI*.5); }
   ctx.setTransform(z*DPR,0,0,-z*DPR,mx*DPR,my*DPR); ctx.rotate(S.a); ctx.scale(sqx,sqy);
   const sp=Math.hypot(S.vx,S.vy), lx=sp>1?S.vx/sp:0, ly=sp>1?S.vy/sp:0, ca=Math.cos(-S.a), sa=Math.sin(-S.a);
-  const look=[lx*ca-ly*sa, lx*sa+ly*ca], blink=(GS.t%3.1)<.1, scared=S.w*S.w>9||S.why==='canyon';
+  const look=[lx*ca-ly*sa, lx*sa+ly*ca], blink=(GS.t%3.1)<.1, scared=S.w*S.w>9||S.why==='canyon'||(lv.start&&S.vy<-9)||GS.cracked;
   const fuelF=S.fuel0?Math.min(1,S.fuel/Math.max(.01,S.n.fuel*K.tankFuel||S.fuel0)):0, chg=S.energy0?S.energy/S.energy0:0;
-  const draws=[...S.P].sort((a,b)=>(a.k==='balloon')-(b.k==='balloon'));
+  const layer=k=>k==='balloon'?2:k==='chute'?1:0; // parachutes over the machine, balloons over everything
+  const draws=[...S.P].sort((a,b)=>layer(a.k)-layer(b.k));
   draws.forEach(p=>{ ctx.save(); ctx.translate(p.rx,p.ry);
-    drawPart(p,{look,blink,scared,spin:p.k==='motor'?S.spin*.5:p.k==='prop'?GS.t*40:S.spin,spinning:S.propping&&p.k==='prop',flame:S.burning&&GS.pre<=0?.6+Math.random()*.6:0,fuel:fuelF,charge:chg,bob:Math.sin(GS.t*2+p.gx)});
+    drawPart(p,{look,blink,scared,open:S.open,cracked:GS.cracked,spin:p.k==='motor'?S.spin*.5:p.k==='prop'?GS.t*40:S.spin,spinning:S.propping&&p.k==='prop',flame:S.burning&&GS.pre<=0?.6+Math.random()*.6:0,fuel:fuelF,charge:chg,bob:Math.sin(GS.t*2+p.gx)});
     ctx.restore(); });
 }
 function cloud(x,y,s){ ctx.save(); ctx.translate(x,y); const b=[[-1,0,.8],[0,-.4,1],[1,0,.75],[.3,.25,.7],[-.5,.25,.6]];
@@ -96,3 +101,93 @@ function flagLabel(x,y,m,txt,align){ ctx.save(); ctx.font='800 12px Figtree, sys
   // mini medal
   const cx=lx+13, cy=y; ctx.beginPath(); ctx.arc(cx,cy,7,0,TAU); if(m===3){ ctx.fillStyle='#000'; ctx.fill(); } else { ctx.fillStyle='#fff'; ctx.fill(); ctx.lineWidth=1.8; ctx.stroke(); if(m===2){ ctx.save(); ctx.clip(); ctx.lineWidth=1.3; for(let i=-10;i<10;i+=3){ ctx.beginPath(); ctx.moveTo(cx+i,cy+8); ctx.lineTo(cx+i+8,cy-8); ctx.stroke(); } ctx.restore(); } else { ctx.beginPath(); ctx.arc(cx,cy,3.5,0,TAU); ctx.stroke(); } }
   ctx.fillStyle='#000'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(txt,lx+25,y+.5); ctx.restore(); }
+
+/* ---------- the egg drop's tower ---------- */
+function dropTower(S){
+  if(S.top==null) S.top=S.P.reduce((m,p)=>Math.max(m,p.ry+(p.k==='chute'?.3:.5)),.5);
+  const top=S.lv.start, arm=top+S.top+1.2;
+  const P=[[-8,0],[-8,top+2],[-5,top+2],[-5,0]].map(([x,y])=>w2s(x,y));
+  ctx.beginPath(); P.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath(); ctx.fillStyle='#fff'; ctx.fill();
+  ctx.save(); ctx.clip(); ctx.fillStyle=HATCH; ctx.globalAlpha=.35; ctx.fillRect(0,0,W,H); ctx.restore();
+  ctx.lineWidth=INK; ctx.strokeStyle='#000'; ctx.stroke();
+  ctx.lineWidth=1.5; ctx.beginPath(); for(let y=0;y<top;y+=4){ const [a,b]=w2s(-8,y), [c,d]=w2s(-5,y+4); ctx.moveTo(a,b); ctx.lineTo(c,d); } ctx.stroke();
+  // the crane arm, and the rope that lets go on "Drop!"
+  const [ax,ay]=w2s(-6.5,arm), [bx,by]=w2s(.6,arm); ctx.lineWidth=INK*1.6; ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+  const [hx,hy]=w2s(0,arm); ctx.lineWidth=2; ctx.beginPath();
+  if(GS.pre>0){ const [mx,my]=w2s(S.x,S.y+S.top); ctx.moveTo(hx,hy); ctx.lineTo(mx,my); ctx.stroke(); }
+  else { ctx.moveTo(hx,hy); ctx.lineTo(hx,hy+10); ctx.stroke(); ctx.beginPath(); ctx.arc(hx+3,hy+13,4,Math.PI*.9,Math.PI*2.2); ctx.stroke(); }
+}
+
+/* ---------- the bridge ---------- */
+const BSTYLE={road:{w:.26,fill:'#fff'}, wood:{w:.17,fill:'#fff'}, steel:{w:.15,fill:'#000'}, cable:{w:0}};
+// N: joints {k,x,y,gx,gy} with y up, in bench cells; L: beams {a,b,m,broken,load}
+function drawBridge(N,L,o){ const g=GS.view, cs=g.cs, xy=bridgeXY;
+  const roadY=xy(0,-ROAD)[1], top=roadY-BSTYLE.road.w*cs/2;
+  // the cliffs
+  [[-1,-.55],[1,GW-.45]].forEach(([side,fx])=>{ const ex=xy(fx,0)[0], far=side<0?-20:W+20, R=seeded(side<0?11:23);
+    ctx.beginPath(); ctx.moveTo(far,top); ctx.lineTo(ex,top); let y=top; while(y<H+20){ y+=cs*(.35+R()*.5); ctx.lineTo(ex+side*R()*cs*.18,y); } ctx.lineTo(far,H+20); ctx.closePath();
+    ctx.fillStyle='#fff'; ctx.fill(); ctx.save(); ctx.clip(); ctx.fillStyle=HATCH; ctx.globalAlpha=.5; ctx.fillRect(0,0,W,H); ctx.restore(); ctx.lineWidth=INK; ctx.strokeStyle='#000'; ctx.lineJoin='round'; ctx.stroke(); });
+  // the road carries on over the clifftops
+  bar(-20,roadY,xy(-1,0)[0],roadY,'road',cs,0); bar(xy(GW,0)[0],roadY,W+20,roadY,'road',cs,0);
+  if(o.run){ const ry=xy(0,-7.4)[1], x0=xy(-.4,0)[0], x1=xy(GW-.6,0)[0]; ctx.save(); ctx.lineWidth=2; ctx.globalAlpha=.6;
+    for(let i=0;i<3;i++){ ctx.beginPath(); for(let x=x0;x<x1;x+=4){ const y=ry+i*9+Math.sin(x*.08+GS.t*2+i)*2.5; x===x0?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.stroke(); } ctx.restore(); }
+  const vis=l=>l.m==='bolt'?(N[l.a].k==='bank'?N[l.b].k:N[l.a].k):l.m, ord={cable:0,steel:1,wood:2,road:3};
+  const faded=i=>o.att&&N[i].k!=='bank'&&!o.att.has(N[i].gx+','+N[i].gy);
+  L.filter(l=>!l.broken).sort((p,q)=>ord[vis(p)]-ord[vis(q)]).forEach(l=>{ const a=N[l.a], b=N[l.b], [x1,y1]=xy(a.x,a.y), [x2,y2]=xy(b.x,b.y);
+    ctx.save(); if(faded(l.a)||faded(l.b)) ctx.globalAlpha=.35; bar(x1,y1,x2,y2,vis(l),cs,o.run?l.load:0); ctx.restore(); });
+  // the joints
+  N.forEach((n,i)=>{ if(n.k==='bank'||n.k==='road') return; const key=n.gx+','+n.gy, [x,y]=xy(n.x,n.y);
+    const pu=o.placed&&o.placed[key]?Math.min(1,(o.now-o.placed[key])/300):1, r=cs*(n.k==='cable'?.07:.1)*(pu<1?1+.6*Math.sin(pu*Math.PI):1);
+    ctx.save(); if(faded(i)) ctx.globalAlpha=.35; ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fillStyle=n.k==='steel'?'#000':'#fff'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#000'; ctx.stroke();
+    if(n.k==='wood'){ ctx.beginPath(); ctx.arc(x,y,r*.35,0,TAU); ctx.fillStyle='#000'; ctx.fill(); } ctx.restore(); });
+}
+function bar(x1,y1,x2,y2,m,cs,load){ const S=BSTYLE[m]||BSTYLE.wood;
+  if(load>.8&&!RM){ const j=(load-.8)*cs*.12; x1+=(Math.random()-.5)*j; y1+=(Math.random()-.5)*j; x2+=(Math.random()-.5)*j; y2+=(Math.random()-.5)*j; }
+  ctx.lineCap='round'; ctx.strokeStyle='#000';
+  if(!S.w){ ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
+  else { const w=S.w*cs; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    if(S.fill==='#fff'){ ctx.lineWidth=Math.max(1,w-2*INK); ctx.strokeStyle='#fff'; ctx.stroke(); ctx.strokeStyle='#000';
+      if(m==='road'){ ctx.lineWidth=1.5; ctx.setLineDash([5,5]); ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.setLineDash([]); } } }
+  if(load>.55){ // strain marks: more of them the closer it is to snapping
+    const mx=(x1+x2)/2, my=(y1+y2)/2, L=Math.hypot(x2-x1,y2-y1)||1, nx=-(y2-y1)/L, ny=(x2-x1)/L, tx=(x2-x1)/L, ty=(y2-y1)/L, n=load>.8?3:2;
+    ctx.lineWidth=2; ctx.lineCap='butt'; ctx.beginPath();
+    for(let i=0;i<n;i++){ const d=(i-(n-1)/2)*7; [1,-1].forEach(sd=>{ ctx.moveTo(mx+tx*d+sd*nx*cs*.2,my+ty*d+sd*ny*cs*.2); ctx.lineTo(mx+tx*d+sd*nx*cs*.32,my+ty*d+sd*ny*cs*.32); }); }
+    ctx.stroke(); }
+}
+function drawBridgeRun(){ const S=GS.S, g=GS.view, cs=g.cs;
+  const sx=RM?0:(Math.random()-.5)*GS.shake*10, sy=RM?0:(Math.random()-.5)*GS.shake*10;
+  ctx.setTransform(DPR,0,0,DPR,sx*DPR,sy*DPR);
+  cloud(W*.2,g.cy-3.2*cs,cs*.5); cloud(W*.78,g.cy-2.6*cs,cs*.4);
+  drawBridge(S.N,S.L,{run:true});
+  const C=S.car; if(C){ const [x,y]=bridgeXY(C.x,C.y); ctx.setTransform(cs*DPR,0,0,-cs*DPR,(x+sx)*DPR,(y-BSTYLE.road.w*cs/2+sy)*DPR); ctx.rotate(C.a); LW=INK/cs;
+    drawVehicle(C.V.k,{scared:C.fall||S.L.some(l=>!l.broken&&l.load>.8)}); }
+}
+
+/* ---------- the pocket watch ---------- */
+function drawWatchRun(){ const S=GS.S, g=GS.view, cs=g.cs, s=cs*.6, cx=g.cx, cy=g.cy+cs*.95;
+  const th=S.nh?.55*Math.sin(TAU*S.t/S.T):0;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  // the case
+  ctx.beginPath(); ctx.arc(cx,cy,3.75*s,0,TAU); ctx.lineWidth=INK*2; ctx.strokeStyle='#000'; ctx.stroke(); ctx.beginPath(); ctx.arc(cx,cy,3.55*s,0,TAU); ctx.lineWidth=1.2; ctx.stroke();
+  LW=INK; rr(cx-.3*s,cy-4.25*s,.6*s,.5*s,.12*s); ink(); ctx.beginPath(); ctx.arc(cx,cy-4.45*s,.35*s,Math.PI,TAU); ctx.lineWidth=INK; ctx.stroke();
+  // the balance wheel: everything you built, swinging around Pip
+  LW=INK/s; const lk=[Math.cos(th*2)*.8,0], blink=(GS.t%3.1)<.1;
+  S.P.forEach(p=>{ ctx.setTransform(s*DPR,0,0,-s*DPR,cx*DPR,cy*DPR); ctx.rotate(-th); ctx.translate(p.bx,p.by); drawPart(p,{look:lk,blink,scared:!S.nh&&S.t>.6}); });
+  GS.loose.forEach(L=>{ ctx.setTransform(s*DPR,0,0,-s*DPR,cx*DPR,cy*DPR); ctx.translate(L.x,L.y); ctx.rotate(L.a); drawPart(L.p,{alpha:.9}); });
+  // the two clocks: Pip's watch and the real time
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const u=watchDay(S), start=10*3600+10*60, sign=S.rate>=0?1:-1, err=S.nh?S.err:0;
+  const real=S.t<WATCH.swing?Math.floor(S.t):WATCH.swing+u*K.day, pip=S.t<WATCH.swing?(S.nh?Math.floor(2*S.t/S.T)/2:0):WATCH.swing+u*K.day+sign*err*u;
+  const fast=u>.02&&u<.98, r=cs*.62, dy=g.cy-2.75*cs;
+  dial(cx-1.35*cs,dy,r,start+pip,'Pip’s watch',!fast);
+  dial(cx+1.35*cs,dy,r,start+real,'Real time',!fast);
+  if(S.nh&&S.t>=WATCH.swing){ ctx.font='800 13px Figtree, system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='alphabetic'; ctx.fillStyle='#000';
+    ctx.fillText((sign>0?'+':'−')+fmt('time',err*u).replace(' a day',''),cx-1.35*cs,dy+r+34); }
+}
+function dial(x,y,r,secs,label,sec){ ctx.save(); ctx.translate(x,y);
+  ctx.beginPath(); ctx.arc(0,0,r,0,TAU); ctx.fillStyle='#fff'; ctx.fill(); ctx.lineWidth=INK; ctx.strokeStyle='#000'; ctx.stroke();
+  for(let i=0;i<12;i++){ const a=i/12*TAU, l=i%3?.1:.18; ctx.lineWidth=i%3?1.5:2.5; ctx.beginPath(); ctx.moveTo(Math.sin(a)*r*.88,-Math.cos(a)*r*.88); ctx.lineTo(Math.sin(a)*r*(.88-l),-Math.cos(a)*r*(.88-l)); ctx.stroke(); }
+  const hand=(a,len,w)=>{ ctx.lineWidth=w; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.sin(a)*r*len,-Math.cos(a)*r*len); ctx.stroke(); };
+  hand(secs/43200*TAU,.5,4); hand(secs/3600*TAU,.75,2.5); if(sec) hand(secs/60*TAU,.82,1.2);
+  ctx.beginPath(); ctx.arc(0,0,3,0,TAU); ctx.fillStyle='#000'; ctx.fill();
+  ctx.font='800 12px Figtree, system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(label,0,r+6); ctx.restore(); }

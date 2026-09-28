@@ -45,8 +45,16 @@ It's a simple 2D rigid body: weight, thrust, air drag, wing lift, balloon lift, 
 - In the air, machines slowly turn to face where they're going, like an arrow.
 - Changing a number in `K` changes every level. Run the check afterwards.
 
+## Other kinds of machine
+Most levels are vehicles (`makeSim`). A level's `kind` can also be:
+- `bridge` (The bridge): no Pip. The road row is fixed. Every part is a joint, and joints that touch, side by side or corner to corner, are joined by a beam (`BEAM` holds each material's strength and give). Cables only pull. Beams are bolted firmly into the cliffs. A bike, car, van and truck (`VEHICLES`) cross in turn. The score is the heaviest that made it across.
+- `watch` (Pocket watch): Pip is the axle of a balance wheel. Its swing time is 2π√(weight spread / hairspring stiffness), and it should be 1 s. The score is seconds off per day, plus a penalty for being off balance. Tapping a screw again screws it further out, for fine tuning.
+- The egg drop is a vehicle level with `start` (a drop height) and the goal `soft` (landing speed).
+`makeAny`, `stepAny` and `scoreOf` pick the right one. Goals with `low:true` in `GOALS` (landing speed, watch error) are better when smaller.
+
 ## Levels and medals
-- Levels are in `LEVELS` in engine.js: `goal` is `dist`, `alt` or `speed`; `marks` are bronze, silver and gold; `budget`; `parts` the tray offers; optional `fixed` parts (the crate on Hot air) and `terrain` (`gap` is the canyon).
+- Levels are in `LEVELS` in engine.js: `goal` is `dist`, `alt`, `speed`, `soft`, `load` or `time`; `marks` are bronze, silver and gold (they get smaller for `low` goals); `budget`; `parts` the tray offers; optional `fixed` parts (the crate on Hot air, the egg, the road) and `terrain` (`gap` is the canyon).
+- Machines already won stay open, along with everything before them, even if a new machine is added in the middle of the list.
 - Winning bronze opens the next level. There are no coins.
 - **Every gold must be winnable.** `tools/check.js` holds one known gold build per level. If you add a level, add its gold build there.
 
@@ -54,7 +62,7 @@ It's a simple 2D rigid body: weight, thrust, air drag, wing lift, balloon lift, 
 1. Work on a new branch, never directly on `main`.
 2. Bump `VERSION` in `play/js/config.js` (patch for fixes, minor for features) and add a line to `CHANGELOG.md` in plain language.
 3. If you touched engine.js, run `node tools/check.js`. It must say "All good".
-4. Test locally: run `python -m http.server` in the repo folder and open http://localhost:8000/play/ at a phone size (390 × 844).
+4. Test locally: run `python -m http.server` in the repo folder and open http://localhost:8000/play/ at a phone size (390 × 844). Add `?all` (http://localhost:8000/play/?all) to open every machine; this only works on your own computer.
 
 ## Protect players' saved progress
 Progress is kept in the browser's localStorage under `inkworks-save`: `{ v, lv: { <level id>: { best, medal, design } } }`. A design is a map of bench cells `"x,y"` to `{ k: part id, d: direction }`.
@@ -72,7 +80,8 @@ Progress is kept in the browser's localStorage under `inkworks-save`: `{ v, lv: 
 
 ## Smoke test
 - The front page shows the rocket launching and a Play button that opens `/play/`.
-- The machines list shows eight machines; only First roll is open, the rest say how to open them.
+- The machines list shows eleven machines; only First roll is open, the rest say how to open them.
+- Egg drop: parachutes open as you fall; a hard landing calls "Crack!". Bridge: two rows of wood under the road carry the truck; the road alone sags and only the bike gets across. Watch: two weights, a hairspring and a balanced pair of screws turned out twice wins gold.
 - In First roll: tap Battery, tap beside Pip; tap Wheel, tap below; the budget number goes up, the balance pointers move. Tapping over budget shakes the number and explains.
 - Launch: the machine squashes, "Go!" pops, it drives off with dust. Passing a mark calls out "Bronze!" and so on.
 - The result card shows the distance, the medal board and the buttons; the next machine opens after a medal; everything is still there after a refresh.
