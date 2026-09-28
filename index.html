@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ink Works: build it, launch it, get trophies</title>
+<meta name="description" content="A minimal ink-drawn mobile game about building machines. Rockets, racers, balloons and planes, each with a goal to beat.">
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ink Works">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ink Works">
+<meta property="og:title" content="Ink Works">
+<meta property="og:description" content="Build it. Launch it. Get trophies.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,900&family=Figtree:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fff;--ink:#000;--soft:#5c5c5c;--display:"Fraunces",Georgia,serif;--ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light;box-sizing:border-box}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#fff;--ink:#000;--soft:#5c5c5c}}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0;min-height:100%;background:var(--paper);color:var(--ink);font-family:var(--ui)}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
+main{position:relative;z-index:1;min-height:100vh;min-height:100dvh;display:grid;place-items:end center;align-content:end;padding:24px 16px calc(env(safe-area-inset-bottom,0px) + 18px)}
+@media (min-aspect-ratio:1/1){main{place-items:center end;align-content:center;padding-right:6vw}}
+.card{width:min(420px,100%);background:var(--paper);border:2.5px solid var(--ink);border-radius:26px;box-shadow:7px 8px 0 var(--ink);padding:28px 24px 22px;text-align:center;animation:in .8s cubic-bezier(.3,.7,.3,1) both .2s}
+@keyframes in{0%{opacity:0;transform:translateY(60px) scale(.8,1.2)}55%{opacity:1;transform:translateY(-8px) scale(1.04,.96)}78%{transform:translateY(2px) scale(.99,1.01)}100%{transform:none}}
+h1{font-family:var(--display);font-style:italic;font-weight:900;font-size:clamp(50px,14vw,74px);line-height:.95;margin:0;letter-spacing:-.01em}
+.tag{font-weight:800;font-size:17px;margin:12px 0 22px}
+.play{display:block;width:100%;background:var(--ink);color:var(--paper);text-decoration:none;border-radius:18px;padding:17px 20px;font-family:var(--display);font-style:italic;font-weight:900;font-size:30px;border:2.5px solid var(--ink);transition:transform .22s cubic-bezier(.34,1.56,.64,1)}
+.play:active{transform:scale(1.04,.9)}
+.play:focus-visible{outline:3px solid var(--ink);outline-offset:4px}
+.feats{list-style:none;padding:0;margin:20px 0 4px;display:grid;gap:10px;text-align:left;font-weight:600;font-size:14.5px;line-height:1.35}
+.feats b{font-weight:800}
+footer{margin-top:12px;font-size:12px;font-weight:600;color:var(--soft)}
+@media (prefers-reduced-motion:reduce){.card{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="c" aria-hidden="true"></canvas>
+<main>
+  <div class="card">
+    <h1>Ink Works</h1>
+    <p class="tag">Build it. Launch it. Get trophies.</p>
+    <a class="play" href="/play/">Play</a>
+    <ul class="feats">
+      <li><b>Eight machines to build.</b> Racers, rockets, balloons and planes.</li>
+      <li><b>One budget each.</b> Every part costs something.</li>
+      <li><b>Bronze, silver, gold.</b> Beat the mark to open the next machine.</li>
+    </ul>
+  </div>
+  <footer>Best on a phone, held upright.</footer>
+</main>
+<script>
+// a little rocket that keeps launching behind the card
+const cv=document.getElementById('c'), g=cv.getContext('2d'); let W,H,D, t=0, puffs=[];
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function size(){ D=Math.min(2,devicePixelRatio||1); W=innerWidth; H=innerHeight; cv.width=W*D; cv.height=H*D; }
+addEventListener('resize',size); size();
+function rocket(x,y,s,fl){ g.save(); g.translate(x,y); g.scale(s,s); g.lineWidth=2.5/s; g.strokeStyle='#000'; g.lineJoin='round';
+  if(fl){ g.beginPath(); g.moveTo(-8,20); g.quadraticCurveTo(-10,20+fl*.5,0,20+fl); g.quadraticCurveTo(10,20+fl*.5,8,20); g.fillStyle='#fff'; g.fill(); g.stroke(); }
+  g.beginPath(); g.moveTo(-8,12); g.lineTo(-12,20); g.lineTo(12,20); g.lineTo(8,12); g.fillStyle='#000'; g.fill();
+  g.beginPath(); g.moveTo(-12,12); g.lineTo(-12,-8); g.quadraticCurveTo(-12,-24,0,-30); g.quadraticCurveTo(12,-24,12,-8); g.lineTo(12,12); g.closePath(); g.fillStyle='#fff'; g.fill(); g.stroke();
+  [-4.5,4.5].forEach(e=>{ g.beginPath(); g.arc(e,-4,2,0,7); g.fillStyle='#000'; g.fill(); }); g.restore(); }
+function frame(){ t+=1/60; const cyc=RM?0:t%5, gy=H*.42, x=W*.5;
+  const lift=cyc<1?0:Math.pow(cyc-1,2.2)*60, y=gy-24-lift;
+  if(!RM&&cyc>.7&&cyc<4.2) puffs.push({x:x+(Math.random()-.5)*8,y:y+34,vx:(Math.random()-.5)*40,vy:20+Math.random()*30,r:4,a:0});
+  puffs.forEach(p=>{ p.a+=1/60; p.x+=p.vx/60; p.y+=p.vy/60; p.vy*=.95; }); puffs=puffs.filter(p=>p.a<1.4);
+  g.setTransform(D,0,0,D,0,0); g.fillStyle='#fff'; g.fillRect(0,0,W,H);
+  g.lineWidth=2.5; g.strokeStyle='#000'; g.beginPath(); g.moveTo(0,gy); g.lineTo(W,gy); g.stroke();
+  const rad=p=>(p.r+14*Math.sqrt(p.a))*(p.a>1?Math.max(0,1.4-p.a)/.4:1);
+  g.beginPath(); puffs.forEach(p=>{ const r=rad(p)+2.5; g.moveTo(p.x+r,p.y); g.arc(p.x,p.y,r,0,7); }); g.fillStyle='#000'; g.fill();
+  g.beginPath(); puffs.forEach(p=>{ const r=rad(p); g.moveTo(p.x+r,p.y); g.arc(p.x,p.y,r,0,7); }); g.fillStyle='#fff'; g.fill();
+  const sq=cyc<1&&cyc>.5?1-.12*Math.sin((cyc-.5)*2*Math.PI):1;
+  g.save(); g.translate(x,y+20); g.scale(2-sq,sq); rocket(0,-20,1.6,cyc>.9&&cyc<4.2?18+Math.random()*12:0); g.restore();
+  requestAnimationFrame(frame); }
+frame();
+if('serviceWorker' in navigator&&location.protocol==='https:') navigator.serviceWorker.register('/sw.js').catch(()=>{});
+</script>
+</body>
+</html>

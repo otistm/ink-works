@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#fff"/>
+  <!-- Pip in a little rocket -->
+  <path d="M200 380 Q180 470 256 500 Q332 470 312 380 Z" fill="#fff" stroke="#000" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M226 382 Q216 440 256 462 Q296 440 286 382 Z" fill="#000"/>
+  <path d="M196 340 L180 386 L332 386 L316 340 Z" fill="#000"/>
+  <path d="M256 42 C200 96 176 150 176 214 L336 214 C336 150 312 96 256 42 Z" fill="#fff" stroke="#000" stroke-width="14" stroke-linejoin="round"/>
+  <rect x="164" y="206" width="184" height="148" rx="44" fill="#fff" stroke="#000" stroke-width="14"/>
+  <ellipse cx="222" cy="268" rx="20" ry="28" fill="#fff" stroke="#000" stroke-width="9"/>
+  <ellipse cx="290" cy="268" rx="20" ry="28" fill="#fff" stroke="#000" stroke-width="9"/>
+  <circle cx="226" cy="262" r="10" fill="#000"/><circle cx="294" cy="262" r="10" fill="#000"/>
+  <path d="M232 314 Q256 334 280 314" fill="none" stroke="#000" stroke-width="9" stroke-linecap="round"/>
+</svg>

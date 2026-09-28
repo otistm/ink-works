@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Ink Works</title>
+<meta name="description" content="Build it. Launch it. Get trophies.">
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ink Works">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,800;1,9..144,900&family=Figtree:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<canvas id="c" aria-label="Workbench"></canvas>
+<header id="top" hidden>
+  <div><div class="hn" id="hn">First roll</div><div class="sub" id="hsub"></div></div>
+  <div class="pts"><div class="pv" id="costbox"><span id="cost">0</span></div><div class="pv" id="live" hidden><span id="livev">0</span><small id="liveu">m</small></div><div class="sub" id="budget"></div></div>
+  <div id="marks"></div>
+</header>
+<button id="home" type="button" aria-label="All machines" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="2.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="2.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="2.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" fill="currentColor" stroke="currentColor" stroke-width="2.6"/></svg></button>
+<div id="dock" hidden>
+  <div id="warn" role="status"></div>
+  <div id="info"></div>
+  <div id="tray" role="toolbar" aria-label="Parts"></div>
+  <div class="acts"><button class="btn ghost" id="clear" type="button">Clear</button><button class="btn" id="launch" type="button">Launch</button></div>
+</div>
+<div id="hint" hidden><span id="hintT"></span></div>
+<button id="skip" type="button" hidden>Skip to the result</button>
+<div id="callout"></div>
+<div id="card" hidden><div class="panel" id="panel"></div></div>
+<script src="js/config.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/render.js"></script>
+<script src="js/state.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/screens.js"></script>
+<script src="js/build.js"></script>
+<script src="js/run.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/main.js"></script>
+<script>if('serviceWorker' in navigator&&location.protocol==='https:') navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>
