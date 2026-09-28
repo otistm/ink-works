@@ -2,7 +2,8 @@
 "use strict";
 /* ---------- build view geometry ---------- */
 function grid(){ const top=$('top').getBoundingClientRect().bottom, bot=$('dock').getBoundingClientRect().top;
-  const cs=Math.floor(Math.min((W-28)/GW,(bot-top-24)/GH,64)); return {cs, cx:W/2, cy:(top+bot)/2}; }
+  const cols=GS.lv&&GS.lv.kind==='bridge'?GW+1.6:GW; // leave room for the cliffs either side of the bridge
+  const cs=Math.floor(Math.min((W-28)/cols,(bot-top-24)/GH,64)); return {cs, cx:W/2, cy:(top+bot)/2}; }
 function cellAt(x,y){ const g=grid(), gx=Math.round((x-g.cx)/g.cs)+3, gy=Math.round((y-g.cy)/g.cs)+3; return (gx<0||gy<0||gx>=GW||gy>=GH)?null:[gx,gy]; }
 
 /* ---------- screens ---------- */
@@ -17,14 +18,18 @@ function medalSVG(m,size){ const s=size||34, id='h'+Math.random().toString(36).s
   else inner=`<circle cx="17" cy="17" r="13" fill="none" stroke="#000" stroke-width="2" stroke-dasharray="3 3.4" opacity=".45"/>`;
   return `<svg width="${s}" height="${s}" viewBox="0 0 34 34" aria-hidden="true">${inner}</svg>`; }
 const MNAME=['Not yet','Bronze','Silver','Gold'];
-const fmt=(g,v)=>Math.round(v)+' '+GOALS[g].unit;
+function fmt(g,v){ if(v==null) return '—';
+  if(g==='time') return v<120?Math.round(v)+' s a day':v<7200?Math.round(v/60)+' min a day':Math.round(v/3600)+' h a day';
+  return (v>0&&v<1?Math.round(v*10)/10:Math.round(v))+' '+GOALS[g].unit; }
+function goalLine(lv){ const G=GOALS[lv.goal];
+  return G.low?`${G.label}: gold is ${fmt(lv.goal,lv.marks[2])} or less`:`${G.label} ${lv.marks[0]}–${lv.marks[2]} ${G.unit}`; }
 
 function showHome(){
   GS.mode='home'; setHud(false); loops(false,false,0);
   const rows=LEVELS.map((lv,i)=>{ const r=rec(lv.id), open=unlocked(i);
     return `<button class="event${open?'':' lock'}" data-i="${i}" ${open?'':'disabled'} style="animation-delay:${i*.04}s">
       <div class="tw-wrap">${medalSVG(open?r.medal:-1,38)}<small>${r.best?fmt(lv.goal,r.best):open?'New':'Locked'}</small></div>
-      <div class="ev"><b>${lv.name}</b><i>${GOALS[lv.goal].label} ${lv.marks[0]}\u2013${lv.marks[2]} ${GOALS[lv.goal].unit}</i><span>${open?lv.blurb:'Win a medal on '+LEVELS[i-1].name+' to open.'}</span></div></button>`; }).join('');
+      <div class="ev"><b>${lv.name}</b><i>${goalLine(lv)}</i><span>${open?lv.blurb:'Win a medal on '+LEVELS[i-1].name+' to open.'}</span></div></button>`; }).join('');
   const got=LEVELS.reduce((s,lv)=>s+rec(lv.id).medal,0);
   openCard(`<h2 class="logo">Ink Works</h2><p>Build it. Launch it. Get trophies.</p>
     <div class="shelf">${medalSVG(got>=LEVELS.length*3?3:got?2:0,26)}<span>${got} of ${LEVELS.length*3} medals</span></div>
@@ -32,8 +37,9 @@ function showHome(){
   $('panel').querySelectorAll('.event[data-i]').forEach(b=>b.onclick=()=>{ audioInit(); blip(520,.12,'triangle',.12,780); startBuild(+b.dataset.i); });
 }
 function startBuild(i){
-  GS.li=i; GS.lv=LEVELS[i]; const r=rec(GS.lv.id);
+  GS.li=i; GS.lv=LEVELS[i]; const r=rec(GS.lv.id); $('costbox').hidden=false; $('live').hidden=true;
   GS.design=r.design?JSON.parse(JSON.stringify(r.design)):newDesign(GS.lv);
+  for(const kk in GS.design) if(!PARTS[GS.design[kk].k]) delete GS.design[kk]; // a part that no longer exists
   const base=newDesign(GS.lv); for(const kk in base) GS.design[kk]=base[kk];
   GS.placed={}; GS.tool=GS.lv.parts[0]; GS.fx=[]; GS.S=null; GS.mode='build'; closeCard(); setHud(true); buildTray(); refreshBuild(); showHint(GS.lv.hint);
 }
@@ -50,10 +56,11 @@ function refreshBuild(){
   const lv=GS.lv, cost=designCost(GS.design);
   $('hn').textContent=lv.name; $('hsub').textContent=lv.blurb;
   $('cost').textContent=cost; $('budget').textContent='of '+lv.budget+' budget';
-  $('marks').innerHTML=lv.marks.map((m,i)=>`<span>${medalSVG(i+1,20)}${m} ${GOALS[lv.goal].unit}</span>`).join('')+(rec(lv.id).best?`<span class="best">Best ${fmt(lv.goal,rec(lv.id).best)}</span>`:'');
+  $('marks').innerHTML=lv.marks.map((m,i)=>`<span>${medalSVG(i+1,20)}${fmt(lv.goal,m)}</span>`).join('')+(rec(lv.id).best?`<span class="best">Best ${fmt(lv.goal,rec(lv.id).best)}</span>`:'');
   const k=GS.tool; $('info').innerHTML=k==='erase'?'<b>Remove</b> Tap a part to take it off and get its cost back.':`<b>${PARTS[k].name}</b> ${PARTS[k].desc}`;
-  const att=attached(GS.design), loose=Object.keys(GS.design).filter(kk=>!att.has(kk)).length;
-  $('warn').textContent=loose?(loose===1?'1 part isn\u2019t joined to Pip. It will fall off.':loose+' parts aren\u2019t joined to Pip. They will fall off.'):'';
+  const att=attachedAny(GS.design,lv), loose=Object.keys(GS.design).filter(kk=>!att.has(kk)).length, to=lv.kind==='bridge'?'the bridge':'Pip';
+  if(lv.kind==='watch'){ const Gs=gearSpeeds(GS.design); $('warn').textContent=Gs.jam?'The gears are jammed: two of them are trying to turn at different speeds.':Gs.spd['3,3']==null?'Pip isn\u2019t joined to the mainspring yet.':''; return; }
+  $('warn').textContent=loose?(loose===1?`1 part isn\u2019t joined to ${to}. It will fall off.`:`${loose} parts aren\u2019t joined to ${to}. They will fall off.`):'';
 }
 let hintT=0; function showHint(t){ const h=$('hint'); if(!t){ h.hidden=true; return; } $('hintT').textContent=t; h.hidden=false; clearTimeout(hintT); hintT=setTimeout(()=>h.hidden=true,6500); }
 function callout(big,small){ const c=$('callout'); c.innerHTML=`<b>${big}</b>`+(small?`<span>${small}</span>`:''); c.classList.remove('go'); void c.offsetWidth; c.classList.add('go'); }

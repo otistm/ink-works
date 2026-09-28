@@ -12,6 +12,7 @@ function drawPart(p,o){
   const rotTo=d=>ctx.rotate((d-1)*Math.PI/2); // local +y becomes the part's direction
   if(k==='frame'){ rr(-.5,-.5,1,1,.04); ink(); ctx.lineWidth=LW*.6; ctx.globalAlpha*=.55; ctx.beginPath(); ctx.moveTo(-.36,-.36); ctx.lineTo(.36,.36); ctx.moveTo(-.36,.36); ctx.lineTo(.36,-.36); ctx.stroke(); }
   else if(k==='core'){
+    if(o.gear){ ctx.save(); ctx.rotate(-(o.spin||0)); gear(.62,14,true); ctx.restore(); }
     ctx.lineWidth=LW; ctx.beginPath(); ctx.moveTo(0,.46); ctx.quadraticCurveTo(.02,.62,.12,.66); ctx.stroke(); ctx.beginPath(); ctx.arc(.13,.66,.055,0,TAU); ctx.fillStyle='#000'; ctx.fill();
     rr(-.47,-.47,.94,.94,.24); ink();
     const lk=o.look||[0,0], bl=o.blink?.02:.15;
@@ -50,11 +51,52 @@ function drawPart(p,o){
   else if(k==='crate'){ rr(-.5,-.5,1,1,.04); ink(); ctx.beginPath(); ctx.rect(-.4,-.4,.8,.8); ctx.save(); hatchFill(); ctx.restore(); ctx.lineWidth=LW*.8; ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-.4,-.4); ctx.lineTo(.4,.4); ctx.lineWidth=LW*2.4; ctx.strokeStyle='#fff'; ctx.stroke(); ctx.lineWidth=LW*.8; ctx.strokeStyle='#000';
     ctx.beginPath(); ctx.moveTo(-.4,-.3); ctx.lineTo(.3,.4); ctx.moveTo(-.3,-.4); ctx.lineTo(.4,.3); ctx.stroke(); }
+  else if(k==='chute'){ const u=o.open||0;
+    if(u>0){ const R=.35+.85*u, cy=.45+1.1*u, hgt=.75*u; // strings, then the canopy
+      ctx.lineWidth=LW*.6; ctx.beginPath(); [[-R,-.22],[-R*.35,-.08],[R*.35,.08],[R,.22]].forEach(([ex,sx])=>{ ctx.moveTo(sx,.2); ctx.lineTo(ex*.96,cy); }); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-R,cy); ctx.bezierCurveTo(-R,cy+hgt*1.3,R,cy+hgt*1.3,R,cy);
+      for(let i=3;i>=0;i--){ const x0=-R+i*R/2; ctx.quadraticCurveTo(x0+R/4,cy+.1*u,x0,cy); } ctx.closePath(); ink();
+      ctx.save(); ctx.clip(); ctx.beginPath(); ctx.rect(-R*.5,cy-.2,R*.5,hgt*1.3); ctx.rect(R*.5,cy-.2,R*.5,hgt*1.3); hatchFill(); ctx.restore();
+      ctx.beginPath(); ctx.moveTo(-R,cy); ctx.bezierCurveTo(-R,cy+hgt*1.3,R,cy+hgt*1.3,R,cy); ctx.lineWidth=LW; ctx.stroke(); }
+    rr(-.32,-.34,.64,.6,.14); ink(); ctx.lineWidth=LW*.7; ctx.beginPath(); ctx.moveTo(-.32,.02); ctx.lineTo(.32,.02); ctx.moveTo(0,.02); ctx.lineTo(0,-.34); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,.02,.06,0,TAU); ink('#000'); }
+  else if(k==='egg'){ ctx.beginPath(); ctx.ellipse(0,-.04,.32,.42,0,0,TAU); ink();
+    ctx.fillStyle='#000'; [[-.12,.12],[.1,-.1],[.14,.16],[-.06,-.22],[.02,.02]].forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,.022,0,TAU); ctx.fill(); });
+    if(o.cracked){ ctx.lineWidth=LW*.9; ctx.beginPath(); ctx.moveTo(-.32,.02); [[-.2,-.06],[-.1,.08],[0,-.06],[.1,.08],[.2,-.04],[.32,.04]].forEach(([x,y])=>ctx.lineTo(x,y)); ctx.stroke();
+      ctx.save(); ctx.globalAlpha*=.8; ctx.beginPath(); ctx.moveTo(-.1,.08); ctx.lineTo(-.02,.3); ctx.moveTo(.1,.08); ctx.lineTo(.2,.28); ctx.lineWidth=LW*.6; ctx.stroke(); ctx.restore(); } }
+  else if(k==='wood'){ rr(-.46,-.16,.92,.32,.05); ink(); ctx.lineWidth=LW*.55; ctx.beginPath(); ctx.moveTo(-.36,-.04); ctx.quadraticCurveTo(0,.06,.3,-.03); ctx.moveTo(-.2,.07); ctx.lineTo(.36,.07); ctx.stroke(); }
+  else if(k==='steel'){ ctx.beginPath(); ctx.moveTo(-.46,.2); ctx.lineTo(.46,.2); ctx.lineTo(.46,.1); ctx.lineTo(.07,.1); ctx.lineTo(.07,-.1); ctx.lineTo(.46,-.1); ctx.lineTo(.46,-.2); ctx.lineTo(-.46,-.2); ctx.lineTo(-.46,-.1); ctx.lineTo(-.07,-.1); ctx.lineTo(-.07,.1); ctx.lineTo(-.46,.1); ctx.closePath(); ink('#000'); }
+  else if(k==='cable'){ ctx.lineWidth=LW*.8; for(let i=0;i<3;i++){ ctx.beginPath(); ctx.ellipse(0,0,.38-i*.1,.3-i*.08,0,0,TAU); ctx.stroke(); } ctx.beginPath(); ctx.moveTo(.38,0); ctx.lineTo(.48,-.3); ctx.stroke(); }
+  else if(k==='road'){ rr(-.5,-.14,1,.28,.03); ink(); ctx.lineWidth=LW*.7; ctx.setLineDash([.12,.1]); ctx.beginPath(); ctx.moveTo(-.4,0); ctx.lineTo(.4,0); ctx.stroke(); ctx.setLineDash([]); }
+  else if(k==='gear'){ ctx.rotate(-(o.spin||0)); gear(.47,12); }
+  else if(k==='dbl2'||k==='dbl3'){ ctx.rotate(-(o.spin||0)); if(k==='dbl3'){ gear(.5,16,true); } else gear(.47,12); gear(.25,7,k==='dbl2'); }
+  else if(k==='spring'){ ctx.save(); ctx.rotate(-(o.spin||0)); gear(.5,20); ctx.beginPath(); ctx.arc(0,0,.36,0,TAU); ink(); ctx.lineWidth=LW*.6; ctx.beginPath();
+    for(let a=0;a<TAU*3;a+=.12){ const r=.06+a*.015; ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r); } ctx.stroke(); ctx.restore(); }
   else if(k==='erase'){ ctx.lineWidth=LW*1.3; ctx.beginPath(); ctx.moveTo(-.3,-.3); ctx.lineTo(.3,.3); ctx.moveTo(-.3,.3); ctx.lineTo(.3,-.3); ctx.stroke(); }
   ctx.restore();
 }
+// a gear of radius r with n teeth, centred on the origin; hatched if shaded
+function gear(r,n,shaded){ const d=r*.2; ctx.beginPath();
+  for(let i=0;i<n;i++){ const a=i/n*TAU, w=TAU/n; [[a,r-d],[a+w*.12,r],[a+w*.45,r],[a+w*.57,r-d]].forEach(([b,rr],j)=>ctx.lineTo(Math.cos(b)*rr,Math.sin(b)*rr)); }
+  ctx.closePath(); ink(); if(shaded){ ctx.save(); hatchFill(); ctx.restore(); ctx.lineWidth=LW; ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(0,0,r*.55,0,TAU); ctx.lineWidth=LW*.6; ctx.stroke();
+  ctx.lineWidth=LW*.8; ctx.beginPath(); for(let i=0;i<4;i++){ const a=i/4*TAU+.4; ctx.moveTo(Math.cos(a)*r*.18,Math.sin(a)*r*.18); ctx.lineTo(Math.cos(a)*r*.55,Math.sin(a)*r*.55); } ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,0,Math.max(.05,r*.18),0,TAU); ink('#000'); }
 // draw a part as a little icon onto a small canvas (the tray)
 function iconCanvas(k,size){ const s=size||40, c=document.createElement('canvas'); c.width=c.height=Math.round(s*DPR); c.style.width=c.style.height=s+'px';
   const real=ctx; ctx=c.getContext('2d'); const sc=k==='wheel'?.5:.62;
   ctx.setTransform(s*DPR*sc,0,0,-s*DPR*sc,s*DPR/2,s*DPR/2); LW=INK/(s*sc)*.8;
   drawPart({k,d:(k==='rocket'||k==='nose'||k==='prop')?1:0},{}); ctx=real; return c; }
+
+/* ---------- the bridge's traffic (local frame: y up, one unit is one bench cell, the road surface at y=0) ---------- */
+function drawVehicle(k,o){ o=o||{}; const wheel=(x,r)=>{ ctx.beginPath(); ctx.arc(x,r,r,0,TAU); ink(); ctx.beginPath(); ctx.arc(x,r,r*.35,0,TAU); ink('#000'); };
+  const eyes=(x,y,s)=>{ const lk=o.look||[1,0]; [-1,1].forEach(e=>{ ctx.beginPath(); ctx.ellipse(x+e*.07*s,y,.05*s,o.scared?.075*s:.065*s,0,0,TAU); ctx.fillStyle='#fff'; ctx.fill(); ctx.lineWidth=LW*.7; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x+e*.07*s+lk[0]*.02*s,y+lk[1]*.02*s,.028*s,0,TAU); ctx.fillStyle='#000'; ctx.fill(); }); };
+  ctx.save();
+  if(k==='bike'){ wheel(-.34,.17); wheel(.34,.17); ctx.lineWidth=LW; ctx.beginPath(); ctx.moveTo(-.34,.17); ctx.lineTo(-.05,.5); ctx.lineTo(.26,.5); ctx.lineTo(.34,.17); ctx.moveTo(-.05,.5); ctx.lineTo(0,.17); ctx.lineTo(-.34,.17); ctx.stroke();
+    rr(-.2,.52,.4,.36,.12); ink(); eyes(0,.72,1.2); }
+  else if(k==='car'){ rr(-.36,.4,.66,.36,.14); ink(); rr(-.66,.14,1.32,.34,.1); ink(); rr(-.24,.47,.4,.22,.06); ink(); eyes(-.04,.58,1); wheel(-.4,.15); wheel(.42,.15); }
+  else if(k==='van'){ rr(-.8,.14,1.6,.78,.12); ink(); ctx.save(); rr(-.7,.26,.95,.56,.06); hatchFill(); ctx.restore(); rr(.38,.46,.34,.3,.06); ink(); eyes(.55,.6,1); wheel(-.5,.16); wheel(.5,.16); }
+  else if(k==='truck'){ rr(-1.12,.18,1.62,.86,.06); ink(); ctx.save(); rr(-1.04,.26,1.46,.7,.04); hatchFill(); ctx.restore(); rr(-1.12,.18,1.62,.86,.06); ctx.lineWidth=LW; ctx.stroke();
+    rr(.56,.18,.56,.72,.14); ink(); rr(.7,.52,.34,.28,.06); ink(); eyes(.87,.66,1); wheel(-.86,.17); wheel(-.46,.17); wheel(.84,.17); }
+  ctx.restore(); }
