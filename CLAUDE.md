@@ -62,8 +62,7 @@ Most levels are vehicles (`makeSim`). A level's `kind` can also be:
 1. Work on a new branch, never directly on `main`.
 2. Bump `VERSION` in `play/js/config.js` (patch for fixes, minor for features) and add a line to `CHANGELOG.md` in plain language.
 3. If you touched engine.js, run `node tools/check.js`. It must say "All good".
-4. Test locally: run `python -m http.server` in the repo folder and open http://localhost:8000/play/ at a phone size (390 × 844). Add `?all` (http://localhost:8000/play/?all) to open every machine; this only works on your own computer.
-
+4. Test locally: run `python -m http.server` in the repo folder and open http://localhost:8000/play/ at a phone size (390 × 844).
 ## Protect players' saved progress
 Progress is kept in the browser's localStorage under `inkworks-save`: `{ v, lv: { <level id>: { best, medal, design } } }`. A design is a map of bench cells `"x,y"` to `{ k: part id, d: direction }`.
 - Never rename a level `id` or a part id (`frame`, `rocket`, …); they're saved in players' designs.
