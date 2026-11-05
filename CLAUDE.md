@@ -2,7 +2,7 @@
 
 Ink Works is a game about building machines, drawn in ink in 3D. The player builds a machine on a pegboard in a giant workshop, within a budget, launches it, and watches it run down a test lane; the result comes up as a test report on a clipboard. It's a sister game to Ink Nine (`../ink-nine`) and Ink Rally (`../ink-rally`) and shares their fonts and way of working.
 
-For now only the first level, First roll, is playable. The earlier 2D game (eleven machines, phone-first) is kept on the `classic-2d` branch; it is not on `main` and not at the official link.
+Two machines are playable so far: First roll (go far) and Liftoff (a rocket: go high), listed in `LEVELS3D` in game.js. The earlier 2D game (eleven machines, phone-first) is kept on the `classic-2d` branch; it is not on `main` and not at the official link.
 
 ## Who you're working with
 Otis is the designer. He doesn't read code. He judges changes by playing them, on a computer for now.
@@ -32,15 +32,16 @@ Otis is the designer. He doesn't read code. He judges changes by playing them, o
 
 ## How it plays
 - The board is 7 × 7. Pip, the passenger, is fixed in the middle and can't be removed. Every part must touch Pip or a part that does; anything not joined falls off at launch (shown faded, with a warning). Nothing is ever bolted onto Pip's face.
-- Drag a part from the table onto the board, or click a part then a square. Drag a placed part to move it, or off the board to remove it (the cost comes back). Number keys pick parts, R picks Remove, Space launches.
+- Drag a part from the table onto the board, or click a part then a square. Clicking a placed rocket or nose cone turns it a quarter turn. Drag a placed part to move it, or off the board to remove it (the cost comes back). Number keys pick parts, R picks Remove, Space launches.
 - The budget meter shows what's left to spend, with a block per placed part and a striped preview of what the pointed-at part would cost.
 - Once launched, the board tips back, the machine drops onto the lane and runs by itself. After 2.5 s "Skip to the result" appears. A run ends when the machine stops, falls, or after 40 s.
 
 ## The physics (arcade, but honest)
-A simple 2D rigid body (the 3D is only how it's drawn): weight, thrust, air drag, wing lift, balloon lift, and springy ground contact. The numbers live in `K` in engine.js. Changing a number in `K` changes every level; run the check afterwards.
+A simple 2D rigid body (the 3D is only how it's drawn): weight, thrust, air drag, wing lift, balloon lift, and springy ground contact. The numbers live in `K` in engine.js. Rockets come in kinds (`ROCKETS`: push `F`, fuel drunk per second `use`, fuel each brings `burn`), all burning from one shared fuel pool filled by the tanks (`TANKS`). Fins (`fin`) steady the spin and steer the machine back toward its starting angle, more as it speeds up. Changing a number in `K` changes every level; run the check afterwards.
 
 ## Levels and medals
-- Levels are in `LEVELS` in engine.js. The 3D game plays `LEVELS[0]` (First roll) only, for now.
+- Levels are in `LEVELS` in engine.js. The 3D game plays the ids in `LEVELS3D` (game.js), in that order; each opens with a bronze on the one before. The picker under the title switches machine by reloading with `?level=<id>`; the last one played is remembered.
+- A distance level runs down the taped lane; a height level (`goal:'alt'`) launches from a round pad beside a tall marked tower.
 - **Every gold must be winnable.** `tools/check.js` holds one known gold build per level.
 
 ## Every change
@@ -50,7 +51,7 @@ A simple 2D rigid body (the 3D is only how it's drawn): weight, thrust, air drag
 4. Test locally: run `python -m http.server` in the repo folder and open http://localhost:8000/play/ at a desktop size (1280 × 720 and up).
 
 ## Protect players' saved progress
-- The 3D game saves the player's build under `inkworks-3d-proto` (a design: bench cells `"x,y"` to `{ k: part id, d: direction }`), best distance under `inkworks-3d-proto-best`, and the report's run count under `inkworks-3d-proto-runs`. Keep those names.
+- The 3D game saves First roll's build under `inkworks-3d-proto` (a design: bench cells `"x,y"` to `{ k: part id, d: direction }`), its best under `inkworks-3d-proto-best` and the report's run count under `inkworks-3d-proto-runs`. Later machines add their id: `inkworks-3d-proto-lift`, `-lift-best`, `-lift-runs`. The last machine played is `inkworks-3d-level`. Keep those names.
 - The 2D game's progress is in `inkworks-save`. Never read it in a way that changes it, and never delete it.
 - Never rename a level `id` or a part id (`frame`, `rocket`, …); they're saved in players' designs.
 

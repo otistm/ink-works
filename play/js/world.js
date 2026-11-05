@@ -4,6 +4,7 @@
 const scene=new THREE.Scene();
 const BENCH_Y=7.0;           // height of Pip's cell on the bench (high enough for the parts table in front)
 const PART3D={};             // templates loaded from models/parts.glb
+let LEVELS3DIR='dist'; // what the current machine is measured by ('dist' or 'alt'), set at startup
 const ENV3D={};              // scenery modelled in Blender: models/env.glb (outdoors) and models/shop.glb (the workshop)
 // where the game takes place: a giant workshop with an endless grid floor (the default), or the outdoors (?world=outdoors)
 const WORLD=new URLSearchParams(location.search).get('world')==='outdoors'?'outdoors':'workshop';
@@ -11,13 +12,13 @@ const WORLD=new URLSearchParams(location.search).get('world')==='outdoors'?'outd
 function loadParts(done){
   const L=new THREE.GLTFLoader(), fail=e=>{ console.error(e); $('hintT').textContent='Couldn’t load the models.'; $('hint').hidden=false; };
   L.load('models/parts.glb?v='+VERSION, g=>{
-    ['core','frame','wheel','motor','battery'].forEach(k=>{ const o=g.scene.getObjectByName('part_'+k); o.parent.remove(o); o.position.set(0,0,0); PART3D[k]=o; });
+    ['core','frame','wheel','motor','battery','rocket','fuel','nose','booster','bigrocket','slowburn','bigtank','fin'].forEach(k=>{ const o=g.scene.getObjectByName('part_'+k); o.parent.remove(o); o.position.set(0,0,0); PART3D[k]=o; });
     const file=WORLD==='workshop'?'shop':'env';
     L.load('models/'+file+'.glb?v='+VERSION, e=>{ e.scene.children.slice().forEach(o=>{ if(/^(env|shop)_/.test(o.name)){ e.scene.remove(o); o.position.set(0,0,0); ENV3D[o.name.replace(/^env_/,'')]=o; } }); done(); }, undefined, fail);
   }, undefined, fail);
 }
 // a fresh copy of a part with its own ink, and handles for the bits that move
-function makePart(k){
+function makePart(k,d){
   const root=PART3D[k].clone(true);
   root.traverse(o=>{ if(o.isMesh){ const tone=o.material.name==='ink'?1:0; o.material=inkMat(tone); } });
   const g=new THREE.Group(); g.add(root); g.userData={k, root,
@@ -27,6 +28,9 @@ function makePart(k){
     pupils:['pip_pupilL','pip_pupilR'].map(n=>root.getObjectByName(n)).filter(Boolean),
     mouth:root.getObjectByName('pip_mouth'), mouthO:root.getObjectByName('pip_mouthO'), ant:root.getObjectByName('pip_antenna'), ball:root.getObjectByName('pip_ball')};
   const u=g.userData; u.pupils.forEach(p=>p.userData.home=p.position.clone()); if(u.mouthO) u.mouthO.visible=false;
+  // rockets and nose cones are modelled pointing up; d says which way this one points (0 right, 1 up, 2 left, 3 down)
+  if(PARTS[k]&&PARTS[k].rot){ u.dirG=root; u.d=d==null?1:d; root.rotation.z=(u.d-1)*Math.PI/2; }
+  root.traverse(o=>{ if(/_nozzle$/.test(o.name)) u.nozzle=o; if(/_gauge$/.test(o.name)) u.gauge=o; }); // where flames come out, and the fuel gauge that drains
   if(u.ant){ // the antenna swings from where it meets Pip's head
     const pv=new THREE.Group(); pv.position.set(0,.46,0); root.add(pv); [u.ant,u.ball].forEach(o=>{ o.position.y-=.46; pv.add(o); }); u.antP=pv; }
   return g;
@@ -71,6 +75,7 @@ function buildBench(){
 const TABLE={y:1.75, z:2.6, x0:-3.6, gap:1.8};
 const table=new THREE.Group(); scene.add(table);
 function buildTable(n){
+  if(n>7){ TABLE.gap=1.42; TABLE.small=.84; } // ten parts: closer together and a little smaller
   const P=PAPER(), w=TABLE.gap*n+.6;
   const top=at(box(w,.22,2,P),0,TABLE.y-.11,TABLE.z); table.add(top);
   table.add(at(box(w-.3,.22,.12,P),0,TABLE.y-.33,TABLE.z+.88)); // front apron
@@ -81,6 +86,7 @@ function buildTable(n){
 /* ---------- the ground, the road and the scenery ---------- */
 function buildWorld(lv){
   const P=PAPER;
+  if(lv.goal==='alt'){ if(WORLD==='workshop') buildFloor(lv,true); else buildOutdoors(lv,true); buildTower(lv); return; }
   if(WORLD==='workshop') buildFloor(lv); else buildOutdoors(lv);
   // the medal lines: a stripe across the road and a flag (gold is solid ink with a star, silver hatched, bronze outlined)
   lv.marks.forEach((m,i)=>{ const tier=i+1;
@@ -92,8 +98,9 @@ function buildWorld(lv){
     const s=sign(['Bronze','Silver','Gold'][i]+' '+m+' m',2.4,.7); at(s,m,.95,-2.8); scene.add(s);
   });
 }
-function buildOutdoors(lv){
+function buildOutdoors(lv,pad){
   const P=PAPER;
+  if(pad){ const ground=new THREE.Mesh(new THREE.PlaneBufferGeometry(2400,1200),inkMat(3)); ground.rotation.x=-Math.PI/2; at(ground,0,0,-300); scene.add(ground); return; }
   // ground: one big sheet of paper, never hatched
   const ground=new THREE.Mesh(new THREE.PlaneBufferGeometry(2400,400),inkMat(3)); ground.rotation.x=-Math.PI/2; at(ground,700,0,-150); scene.add(ground);
   // the road: a raised strip, with dashes along its front edge
@@ -113,25 +120,54 @@ function buildOutdoors(lv){
    One light line every metre, all the same, a taped test lane down the middle, all fading to white in the distance.
    It isn't outlined (it's on the no-outline layer), so there is no horizon line: the floor just melts into the paper. */
 const FLOOR_FRAG=`
-varying vec3 vW;
+varying vec3 vW; uniform float uPad;
 float grid(vec2 p,float step,float px){ vec2 c=p/step, fw=fwidth(c), d=abs(fract(c-.5)-.5)/max(fw,1e-4); return 1.-clamp(min(d.x,d.y)-px*.5+.5,0.,1.); }
 void main(){
   vec2 p=vW.xz; float fw=max(fwidth(p.x),fwidth(p.y)); float col=1.;
   col=mix(col,.86,grid(p,1.,1.)*(1.-smoothstep(.22,.6,fw)));     // one light line every metre, all alike; it melts away where the squares get tiny
-  // the test lane: plain floor between two strips of hazard tape
-  float az=abs(p.y);
-  if(az<1.85) col=max(col,.94);
-  if(az>1.85&&az<2.25){ float st=step(.5,fract((p.x-p.y*sign(p.y))*.9)); col=mix(1.,0.,st); if(az<1.9||az>2.2) col=0.; }
+  if(uPad<.5){ // the test lane: plain floor between two strips of hazard tape
+    float az=abs(p.y);
+    if(az<1.85) col=max(col,.94);
+    if(az>1.85&&az<2.25){ float st=step(.5,fract((p.x-p.y*sign(p.y))*.9)); col=mix(1.,0.,st); if(az<1.9||az>2.2) col=0.; }
+  } else { // the launch pad: a round plate inside a ring of hazard tape
+    float r=length(p);
+    if(r<3.3) col=max(col,.94);
+    if(r>3.3&&r<3.8){ float a=atan(p.y,p.x); float st=step(.5,fract(a/6.2832*36.+r*.9)); col=mix(1.,0.,st); if(r<3.36||r>3.74) col=0.; }
+    if(abs(r-1.6)<.05) col=.6;
+  }
   // fade everything into the paper far away
   float dist=length(vW-cameraPosition); col=mix(col,1.,smoothstep(90.,260.,dist));
   gl_FragColor=vec4(vec3(col),1.);
 }`;
-function buildFloor(lv){
+function buildFloor(lv,pad){
   const m=new THREE.ShaderMaterial({vertexShader:'varying vec3 vW; void main(){ vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }',
-    fragmentShader:FLOOR_FRAG, extensions:{derivatives:true}});
+    fragmentShader:FLOOR_FRAG, extensions:{derivatives:true}, uniforms:{uPad:{value:pad?1:0}}});
   const floor=new THREE.Mesh(new THREE.PlaneBufferGeometry(5000,3000),m); floor.rotation.x=-Math.PI/2; at(floor,1000,0,-1000); floor.layers.set(NOEDGE); floor.renderOrder=-1; scene.add(floor);
-  FLOORNUMS.lv=lv;
+  FLOORNUMS.lv=pad?null:lv;
 }
+/* ---------- the height tower: a tall lattice mast beside the launch pad, marked every 5 m, numbered every 10 m,
+   with a flag sticking out at each medal height ---------- */
+function buildTower(lv){
+  const top=Math.ceil(lv.marks[2]*1.4/10)*10, X=8.5, Z=-5, cube=new THREE.BoxBufferGeometry(1,1,1), rails=[], ticks=[];
+  [[-.6,-.6],[.6,-.6],[-.6,.6],[.6,.6]].forEach(([dx,dz])=>rails.push(piece(cube,X+dx,top/2,Z+dz,.16,top,.16)));
+  for(let y=2.5;y<top;y+=2.5){ rails.push(piece(cube,X,y,Z+.6,1.2,.09,.09),piece(cube,X,y,Z-.6,1.2,.09,.09),piece(cube,X-.6,y,Z,.09,.09,1.2),piece(cube,X+.6,y,Z,.09,.09,1.2)); }
+  mergeStatic(rails,PAPER());
+  for(let y=5;y<top;y+=5) ticks.push(piece(cube,X-.95,y,Z+.6,y%10?.5:.9,.08,.08));
+  mergeStatic(ticks,INKM());
+  for(let y=10;y<top;y+=10){ if(lv.marks.includes(y)) continue; const s=sign(y+' m',1.5,.7); at(s,X+1.6,y,Z+.62); scene.add(s); }
+  lv.marks.forEach((m,i)=>{ const tier=i+1;
+    scene.add(at(box(2.6,.09,.09,tier===3?INKM():inkMat(tier===2?2:3)),X-1.6,m,Z+.6));   // a line across at the medal height
+    const fg=new THREE.Shape(); fg.moveTo(0,0); fg.lineTo(2.2,-.65); fg.lineTo(0,-1.3); fg.lineTo(0,0);
+    const flag=new THREE.Mesh(new THREE.ExtrudeBufferGeometry(fg,{depth:.06,bevelEnabled:false}), tier===3?INKM():tier===2?inkMat(2):inkMat(3));
+    at(flag,X+.66,m+.65,Z); scene.add(flag); FLAGS.push(flag);
+    const s=sign(['Bronze','Silver','Gold'][i]+' '+m+' m',2.4,.7); at(s,X+2.1,m-.5,Z+.62); scene.add(s); });
+}
+// a rocket's flame: a fat paper teardrop with three licking tongues round it, inked by the outline pass; it flickers while the rocket burns
+const flameG=new THREE.SphereBufferGeometry(.26,16,10), tongueG=new THREE.ConeBufferGeometry(.1,.55,10);
+flameG.scale(1,2.1,1); flameG.translate(0,-.42,0); tongueG.rotateX(Math.PI); tongueG.translate(0,-.38,0);
+function addFlame(g){ const u=g.userData; if(!u.nozzle) return; const f=new THREE.Group(), m=inkMat(3), R=ROCKETS[u.k]; u.flameSize=R?Math.sqrt(R.F/70):1;
+  f.add(new THREE.Mesh(flameG,m)); u.tongues=[0,1,2].map(i=>{ const t=new THREE.Mesh(tongueG,m), a=i/3*TAU; t.position.set(Math.cos(a)*.13,-.25,Math.sin(a)*.13); t.rotation.z=Math.cos(a)*.35; t.rotation.x=-Math.sin(a)*.35; f.add(t); return t; });
+  f.visible=false; u.nozzle.add(f); u.flame=f; }
 // big numbers painted on the floor in front of the lane, every 10 m (drawn once the font has loaded)
 const FLOORNUMS={lv:null, done:false};
 function paintFloorNumbers(){
@@ -162,6 +198,13 @@ function scatter(name,places,ink){ // ink: use this ink for every piece instead 
 // the workshop: giant tools dropped on the floor behind the lane, so Pip looks tiny, and test cones along the tape
 function buildShop(){
   const r=rnd(11), Rr=(a,b)=>a+r()*(b-a);
+  if(FLOORNUMS.lv===null&&LEVELS3DIR==='alt'){ // the launch room: giant tools in a loose ring round the pad
+    const kinds=['shop_nut','shop_bolt','shop_pencil','shop_ruler','shop_spanner','shop_block','shop_washer'], spots={}; kinds.forEach(k=>spots[k]=[]);
+    for(let i=0;i<16;i++){ const a=-Math.PI*.95+i/16*Math.PI*.9+Rr(-.08,.08), rr=Rr(16,46), k=kinds[i%kinds.length];
+      spots[k].push({x:Math.cos(a)*rr*1.4, z:Math.sin(a)*rr-6, s:k==='shop_ruler'||k==='shop_pencil'||k==='shop_spanner'?Rr(1.4,2.2):Rr(2,3.6), ry:Rr(0,6)}); }
+    for(const k in spots) scatter(k,spots[k]);
+    const cones=[]; for(let i=0;i<10;i++){ const a=i/10*TAU+.3; cones.push({x:Math.cos(a)*4.6, z:Math.sin(a)*4.6, ry:a}); } scatter('shop_cone',cones);
+    return; }
   const cones=[]; for(let x=-20;x<=420;x+=5) cones.push({x, z:-2.75, ry:Rr(0,6)});
   for(let x=-15;x<=420;x+=20) cones.push({x, z:2.75, ry:Rr(0,6)});
   scatter('shop_cone',cones);
