@@ -21,6 +21,7 @@ function frame(now){ const raw=(now-last)/1000, dt=Math.min(.05,raw); last=now;
   if(GS.mode==='run') runStep(dt);
   animate(dt); inkRender(scene,cam,GS.t); requestAnimationFrame(frame); }
 loadParts(()=>{
+  loadClipboard();
   buildScenery(); buildItems(); GS.design=loadDesign(); $('top').hidden=false; $('dock').hidden=false;
   refreshBuild(); GS.powered=GS.L.powered.size>0&&GS.L.driven.size>0; GS.mode='build'; showHint('Drag a part onto the board. Wheels go on the bottom.');
   requestAnimationFrame(t=>{ last=t; frame(t); });

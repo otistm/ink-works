@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.2
+- 3D test: sharp clipboard buttons. "Run it again" and "Change the build" are now real buttons laid exactly over the bottom of the report page, following the clipboard as it swings in, so their lettering is as crisp as the rest of the interface. The page itself is now drawn at the size it shows on screen, so its writing is sharper too, and the clipboard rests square to the screen instead of swaying.
+
+## 0.11.1
+- 3D test: the clipboard sits in the middle of the screen, and "Run it again" and "Change the build" are drawn right on the report page as ink buttons. They lift when you point at them and press in when you click. They appear early, so you never have to wait for the page to finish. Pip's signature moved up to the corner like a signed form, "Best so far" sits beside the distance, and the NEW BEST stamp lands on the corner of the machine sketch. Space and Esc still work, and keyboard and screen-reader users still get real buttons.
+
+## 0.11.0
+- 3D test: the result is a test report on a clipboard. When a run ends, a clipboard (modelled in Blender) swings up in front of the camera with a little overshoot, and the page fills itself in as you watch: an ink sketch of your machine, the distance written in big, a tick for each medal you earned (with a chime), the verdict circled ("Gold!" or "Not yet"), a note if something's missing, a "NEW BEST" stamp that thumps down, and Pip's signature. Each report has a run number. "Run it again" and "Change the build" sit beside the clipboard (Space and Esc work too), and the clipboard drops away when you go back to the bench.
+
 ## 0.10.1
 - 3D test: the workshop floor grid is lighter and even: one light grey line every metre, all the same colour and strength, with no darker 5 m or 10 m lines.
 

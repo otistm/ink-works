@@ -66,3 +66,16 @@
 .word.small{font-size:17px}
 @keyframes wordIn{0%{opacity:0;scale:.3 .3}15%{opacity:1;scale:1.25 .8}28%{scale:.9 1.12}40%{scale:1}80%{opacity:1}100%{opacity:0;scale:.85 1.15}}
 @media (prefers-reduced-motion: reduce){ .word{animation:none} }
+
+/* the report's buttons: real buttons laid exactly over the bottom of the clipboard page, so they stay crisp */
+#report{position:fixed;inset:0;z-index:6;pointer-events:none}
+.pbtn{position:fixed;pointer-events:auto;appearance:none;box-sizing:border-box;margin:0;padding:0;cursor:pointer;display:grid;place-items:center;
+  border:2.5px solid var(--ink);border-radius:2px;background:var(--paper);color:var(--ink);font:800 16px var(--ui);line-height:1;white-space:nowrap;
+  box-shadow:4px 4px 0 var(--ink);transition:transform .12s, box-shadow .12s}
+.pbtn.main{background:var(--ink);color:var(--paper);font-family:var(--display);font-style:italic;font-weight:900}
+.pbtn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}
+.pbtn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+.pbtn:focus-visible{outline:3px solid var(--ink);outline-offset:4px}
+#reportKeys{position:fixed;text-align:center;color:var(--soft);font-weight:700;white-space:nowrap}
+@media (prefers-reduced-motion: reduce){ .pbtn{transition:none} }
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

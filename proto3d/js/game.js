@@ -172,6 +172,7 @@ function tapAny(e){
    a part taken off the board is removed (and its cost comes back). A press without a move is still a click. */
 let DRAG=null; const RETURNS=[];
 function onDown(e){
+  if(GS.mode==='done'){ reportPress(e); return; }
   if(GS.mode!=='build') return; audioInit();
   const item=itemAt(e), c=item?null:cellAt(e), key=c&&c.join(','), cur=key&&GS.design[key];
   const from=item&&item!=='erase'?'table':cur&&!PARTS[cur.k].fixed&&GS.tool!=='erase'?key:null;
@@ -180,6 +181,7 @@ function onDown(e){
   tapAny(e);
 }
 function onMove(e){
+  if(GS.mode==='done'){ reportHover(e); return; }
   if(DRAG&&!DRAG.active&&Math.hypot(e.clientX-DRAG.x0,e.clientY-DRAG.y0)>6) startDrag(e);
   if(DRAG&&DRAG.active) dragTo(e);
   hoverAll(e);
@@ -322,20 +324,25 @@ function finish(){
   const S=GS.S, v=S.best.dist, m=medalFor(LV,v); GS.mode='done';
   let best=0; try{ best=+localStorage.getItem(SKEY3+'-best')||0; if(v>best) localStorage.setItem(SKEY3+'-best',v); }catch(e){}
   const why=!S.P.some(p=>!PARTS[p.k].fixed)?'Pip needs some parts.':S.n.motor&&!S.n.battery?'The motor needs a battery.':S.n.battery&&!S.n.motor?'A battery on its own won’t turn the wheels. Add a motor.':'';
+  // the result comes up as a test report on a clipboard; the old card is only a fallback if the clipboard hasn't loaded
+  let run=1; try{ run=(+localStorage.getItem(SKEY3+'-runs')||0)+1; localStorage.setItem(SKEY3+'-runs',run); }catch(e){}
+  const D={level:LV.name, run, value:fmt(LV.goal,v), marks:LV.marks.map(mk=>fmt(LV.goal,mk)), medal:m, head:m===3?'Gold!':m===2?'Silver!':m===1?'Bronze!':'Not yet',
+    why, newBest:v>best&&v>0, best:v>best?'':best?'Best so far: '+fmt(LV.goal,best)+'.':''};
+  if(showReport(D,S)){ setLive(v); return; }
   const rows=LV.marks.map((mk,i)=>`<div class="row${m>=i+1?' me':''}"><span class="pos">${medalSVG(m>=i+1?i+1:0,22)}</span><span class="nm">${MNAME[i+1]}</span><span></span><b>${fmt(LV.goal,mk)}</b></div>`).join('');
   $('panel').innerHTML=`<h2>${m===3?'Gold!':m===2?'Silver!':m===1?'Bronze!':'Not yet'}</h2><p>${LV.name}${why?'. '+why:''}</p>
     <div class="award"><div class="troph">${medalSVG(m,m?84:64)}</div></div>
     <div class="big">${fmt(LV.goal,v)}</div><p class="nxt">${v>best?'New best':best?'Best '+fmt(LV.goal,best):''}</p>
     <div class="board">${rows}</div>
-    <button class="btn" id="bAgain" type="button">Change the build</button>
-    <button class="btn ghost" id="bRetry" type="button">Run it again</button>`;
+    <button class="btn" type="button" onclick="toBuild()">Change the build</button>
+    <button class="btn ghost" type="button" onclick="toBuild();launch()">Run it again</button>`;
   $('card').hidden=false;
   if(m) setTimeout(()=>{ blip(660,.15,'triangle',.14); setTimeout(()=>blip(880,.15,'triangle',.14),120); if(m>1) setTimeout(()=>blip(1175,.3,'triangle',.14),240); },350);
-  $('bAgain').onclick=()=>{ blip(500,.08); toBuild(); };
-  $('bRetry').onclick=()=>{ blip(500,.08); toBuild(); launch(); };
 }
+$('bAgain').onclick=()=>{ blip(500,.08); toBuild(); };
+$('bRetry').onclick=()=>{ blip(500,.08); toBuild(); launch(); };
 function toBuild(){
-  clearTimeout(GS.skipT); $('card').hidden=true; $('skip').hidden=true; GS.mode='build';
+  clearTimeout(GS.skipT); $('card').hidden=true; hideReport(); $('skip').hidden=true; GS.mode='build';
   if(GS.machine){ scene.remove(GS.machine); GS.machine=null; } GS.loose.forEach(L=>scene.remove(L.o)); GS.loose=[];
   trail(0); benchParts.visible=true; benchPivot.rotation.x=0; WORDS.forEach(w=>w.el.remove()); WORDS.length=0; if(GS.shadow) GS.shadow.visible=false;
   Object.values(ITEMS).forEach(it=>it.label.hidden=false);
@@ -398,7 +405,7 @@ function animate(dt){
       u.spin.forEach(o=>{ if(o.name==='wheel_spin'){ if(L.driven.has(key)) o.rotation.z=-GS.benchSpin; } else if(L.powered.has(key)) o.rotation.z=(o.name==='motor_gearF'?-1:1)*GS.benchSpin*3; }); } }
   if(GS.mode==='build') animateItems(dt);
   animateDrag(dt);
-  stepFX(dt); stepWords(dt);
+  stepFX(dt); stepWords(dt); animateReport(dt);
   FLAGS.forEach((f,i)=>{ f.rotation.y=RM?0:Math.sin(GS.t*2.4+i)*.18; });
   CLOUDS.forEach(c=>{ c.position.x+=c.userData.drift*dt; });
   stepPuffs(dt);

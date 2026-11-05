@@ -12,7 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,800;1,9..144,900&family=Figtree:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../play/styles.css">
 <!-- ?v= matches VERSION: bump it with every change so browsers fetch the new files -->
-<link rel="stylesheet" href="proto.css?v=0.10.1">
+<link rel="stylesheet" href="proto.css?v=0.11.2">
 </head>
 <body>
 <canvas id="c" aria-label="Workbench"></canvas>
@@ -37,15 +37,22 @@
 <button id="skip" type="button" hidden>Skip to the result</button>
 <div id="callout"></div>
 <div id="card" hidden><div class="panel" id="panel"></div></div>
+<div id="report" hidden>
+  <button id="bRetry" class="pbtn main" type="button">Run it again</button>
+  <button id="bAgain" class="pbtn" type="button">Change the build</button>
+  <small id="reportKeys">Space to run again · Esc to change the build</small>
+</div>
+<div id="reportSay" class="sr" role="status" aria-live="polite"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="../play/js/config.js"></script>
 <script src="../play/js/engine.js"></script>
 <script src="../play/js/audio.js"></script>
-<script src="js/ink.js?v=0.10.1"></script>
-<script src="js/world.js?v=0.10.1"></script>
-<script src="js/power.js?v=0.10.1"></script>
-<script src="js/game.js?v=0.10.1"></script>
-<script src="js/main.js?v=0.10.1"></script>
+<script src="js/ink.js?v=0.11.2"></script>
+<script src="js/world.js?v=0.11.2"></script>
+<script src="js/power.js?v=0.11.2"></script>
+<script src="js/game.js?v=0.11.2"></script>
+<script src="js/report.js?v=0.11.2"></script>
+<script src="js/main.js?v=0.11.2"></script>
 </body>
 </html>
