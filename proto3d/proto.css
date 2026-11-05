@@ -1,0 +1,46 @@
+/* Ink Works 3D prototype: small additions to the game's own styles. Laid out for desktop. */
+.pts{margin-right:0}
+#marks{display:none} /* the progress line shows the medals instead */
+#tag{position:fixed;right:16px;bottom:16px;z-index:6;font:800 11px var(--ui);letter-spacing:.04em;
+  border:1.5px dashed var(--ink);border-radius:999px;padding:2px 8px;background:var(--paper);pointer-events:none}
+#tray{display:none}
+
+/* the bottom bar: what the chosen part does, what powers what, and the buttons */
+#dock{left:50%;right:auto;width:min(980px,calc(100% - 32px));transform:translateX(-50%);background:none;padding:0 0 calc(env(safe-area-inset-bottom,0px) + 14px);
+  display:grid;grid-template-columns:1fr auto;align-items:end;gap:6px 16px}
+#dock #warn{grid-column:1/-1;margin:0;justify-self:center}
+#dock .txt{min-width:0}
+#power{font-size:13.5px;font-weight:800;min-height:1.3em;margin-bottom:2px}
+#info{margin:0;min-height:1.4em}
+#dock .acts{margin:0;grid-template-columns:auto 220px}
+#hint{top:calc(env(safe-area-inset-top,0px) + 78px)}
+
+/* labels under the parts on the table: name, cost and the key that picks it */
+.tlabel{position:fixed;left:0;top:0;z-index:4;appearance:none;display:flex;align-items:center;gap:6px;white-space:nowrap;
+  border:2px solid var(--ink);border-radius:999px;background:var(--paper);color:var(--ink);padding:3px 10px 3px 4px;font:800 13px var(--ui);cursor:pointer;
+  transition:background .15s, color .15s}
+.tlabel kbd{font:800 11px var(--ui);border:1.5px solid currentColor;border-radius:6px;padding:0 5px;line-height:16px}
+.tlabel small{font-size:12px;font-weight:800;opacity:.7;font-variant-numeric:tabular-nums}
+.tlabel.on{background:var(--ink);color:var(--paper)}
+.tlabel.short{border-style:dashed}
+.tlabel.short small{text-decoration:line-through}
+.tlabel:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+/* the progress line: where you are on the way to each medal */
+#trail{position:fixed;z-index:5;top:calc(env(safe-area-inset-top,0px) + 24px);left:50%;transform:translateX(-50%);width:min(560px,44vw);height:44px;pointer-events:none}
+#trail .tl{position:absolute;left:0;right:0;top:14px;border-top:2.5px dashed var(--ink)}
+#trail .tf{position:absolute;left:0;top:12.5px;height:5.5px;background:var(--ink);border-radius:3px;width:0}
+#trail .tm{position:absolute;top:4px;transform:translateX(-50%);display:grid;justify-items:center;gap:1px}
+#trail .tm svg{background:var(--paper);border-radius:50%}
+#trail .tm small,#trail .tb small{font:800 11px var(--ui);font-variant-numeric:tabular-nums}
+#trail .tb{position:absolute;top:-6px;transform:translateX(-50%);border-left:2px solid var(--ink);height:26px;padding-left:3px}
+#trail .tb small{position:absolute;top:-8px;left:4px;color:var(--soft)}
+#trail .tp{position:absolute;top:6px;transform:translateX(-50%);width:20px;height:20px;border:2.5px solid var(--ink);border-radius:6px;background:var(--paper)}
+#trail .tp i{position:absolute;left:4px;top:5px;width:3px;height:3px;border-radius:50%;background:var(--ink);box-shadow:6px 0 0 var(--ink)}
+
+/* words that pop out of the machine: "Powered!", "Flat!" */
+.word{position:fixed;left:0;top:0;z-index:7;pointer-events:none;font-family:var(--display);font-style:italic;font-weight:900;font-size:26px;line-height:1;white-space:nowrap;
+  text-shadow:2px 3px 0 #fff,-2px -2px 0 #fff,2px -2px 0 #fff,-2px 2px 0 #fff;animation:wordIn 1.3s cubic-bezier(.3,.7,.3,1) forwards}
+.word.small{font-size:17px}
+@keyframes wordIn{0%{opacity:0;scale:.3 .3}15%{opacity:1;scale:1.25 .8}28%{scale:.9 1.12}40%{scale:1}80%{opacity:1}100%{opacity:0;scale:.85 1.15}}
+@media (prefers-reduced-motion: reduce){ .word{animation:none} }

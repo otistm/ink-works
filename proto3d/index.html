@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Ink Works 3D</title>
+<meta name="description" content="A test of Ink Works in 3D, still drawn in ink.">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,800;1,9..144,900&family=Figtree:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../play/styles.css">
+<link rel="stylesheet" href="proto.css">
+</head>
+<body>
+<canvas id="c" aria-label="Workbench"></canvas>
+<header id="top" hidden>
+  <div><div class="hn" id="hn">First roll</div><div class="sub" id="hsub"></div></div>
+  <div class="pts"><div class="pv" id="costbox"><span id="cost">0</span></div><div class="pv" id="live" hidden><span id="livev">0</span><small id="liveu">m</small></div><div class="sub" id="budget"></div></div>
+  <div id="marks"></div>
+</header>
+<div id="trail" aria-hidden="true"></div>
+<div id="tag">3D test</div>
+<div id="dock" hidden>
+  <div id="warn" role="status"></div>
+  <div class="txt"><div id="power" role="status"></div><div id="info"></div></div>
+  <div class="acts"><button class="btn ghost" id="clear" type="button">Clear</button><button class="btn" id="launch" type="button">Launch</button></div>
+</div>
+<div id="hint" hidden><span id="hintT"></span></div>
+<button id="skip" type="button" hidden>Skip to the result</button>
+<div id="callout"></div>
+<div id="card" hidden><div class="panel" id="panel"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="../play/js/config.js"></script>
+<script src="../play/js/engine.js"></script>
+<script src="../play/js/audio.js"></script>
+<script src="js/ink.js"></script>
+<script src="js/world.js"></script>
+<script src="js/power.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
