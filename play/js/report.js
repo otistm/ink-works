@@ -1,4 +1,4 @@
-/* Ink Works 3D prototype: the result as a test report, on a clipboard that swings up in front of the camera.
+/* Ink Works: the result as a test report, on a clipboard that swings up in front of the camera.
    The page fills itself in as you watch: a sketch of the machine, the distance, ticks for each medal,
    the verdict circled, a "New best" stamp and Pip's signature. */
 "use strict";

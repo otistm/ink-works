@@ -1,4 +1,4 @@
-/* Ink Works 3D prototype: the ink renderer.
+/* Ink Works: the ink renderer.
    Everything is paper white. Shadow is drawn as hatching (one way, then crossed when darker),
    and ink outlines are found from depth and surface direction, with a slight hand-drawn wobble that "boils". */
 "use strict";

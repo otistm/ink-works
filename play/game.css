@@ -1,7 +1,6 @@
-/* Ink Works 3D prototype: small additions to the game's own styles. Laid out for desktop. */
+/* Ink Works: the 3D game's styles, on top of styles.css. Laid out for desktop. */
 .pts{margin-right:0}
 #marks{display:none} /* the progress line shows the medals instead */
-#tag{position:fixed;right:16px;bottom:16px;z-index:6;font:800 11px var(--ui);letter-spacing:.04em;
   border:1.5px dashed var(--ink);border-radius:999px;padding:2px 8px;background:var(--paper);pointer-events:none}
 #tray{display:none}
 
@@ -15,7 +14,6 @@
 #power{font-size:13.5px;font-weight:800;min-height:1.3em;margin-bottom:2px}
 #info{margin:0;min-height:1.4em}
 #dock .acts{margin:0;grid-template-columns:auto 200px}
-#tag{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 70px)}
 
 /* the budget meter */
 #budgetbox{display:grid;gap:5px}

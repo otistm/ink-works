@@ -1,4 +1,4 @@
-/* Ink Works 3D prototype: how the parts work together, and the little effects that make building feel physical.
+/* Ink Works: how the parts work together, and the little effects that make building feel physical.
    No cables or plates: parts snap together with a click, and a powered machine shows it by ticking over.
    (The rules are still the real game's: any battery runs every motor, and motors drive every wheel on the ground.) */
 "use strict";

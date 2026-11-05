@@ -1,8 +1,8 @@
-/* Ink Works 3D prototype: First roll. Pick parts from the table, build on the board, launch, watch it run, see the result.
+/* Ink Works: First roll. Pick parts from the table, build on the board, launch, watch it run, see the result.
    The rules and the physics are the real game's (../play/js/engine.js); only the drawing is new. */
 "use strict";
 const LV=LEVELS[0];
-const SKEY3='inkworks-3d-proto'; // its own save, so the real game's progress is never touched
+const SKEY3='inkworks-3d-proto'; // its own save (keep this name: players' builds are stored under it). The 2D game's 'inkworks-save' is never touched.
 const MNAME=['Not yet','Bronze','Silver','Gold'];
 const TOOLS=[...LV.parts,'erase'];
 const GS={mode:'load', design:null, tool:'frame', S:null, bparts:{}, machine:null, squashG:null, pre:0, acc:0, got:0, endT:0, loose:[], t:0,

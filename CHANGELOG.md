@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.0
+- Ink Works is now the 3D game. Play opens the ink-drawn 3D workshop version of First roll, which is the only machine for now; more will follow in this style. The front page describes the new game.
+- The earlier 2D game, with all eleven machines, is kept safe on the `classic-2d` branch. Players' 2D progress stays in their browser, untouched.
+- Home-screen installs open the new game, and it can be turned either way rather than only upright.
+
 ## 0.11.2
 - 3D test: sharp clipboard buttons. "Run it again" and "Change the build" are now real buttons laid exactly over the bottom of the report page, following the clipboard as it swings in, so their lettering is as crisp as the rest of the interface. The page itself is now drawn at the size it shows on screen, so its writing is sharper too, and the clipboard rests square to the screen instead of swaying.
 

@@ -1,4 +1,4 @@
-/* Ink Works 3D prototype: the world. The parts modelled in Blender, the bench, the road, the hills and the medal flags.
+/* Ink Works: the world. The parts modelled in Blender, the bench, the road, the hills and the medal flags.
    One bench cell is one metre. x runs along the road, y is up, z comes toward the camera. */
 "use strict";
 const scene=new THREE.Scene();
