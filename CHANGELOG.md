@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.1
+- The build board always starts empty, with just Pip, when you open the game or switch machine. "Change the build" after a run still brings back the machine you just flew.
+
 ## 0.14.0
 - More rocket parts in Liftoff, so you can build different kinds of rocket:
   - Booster (12): small and cheap, a gentle push. Cluster a few round a big tank for a long, gentle climb.

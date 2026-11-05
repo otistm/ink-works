@@ -30,7 +30,8 @@ const benchParts=new THREE.Group(); scene.add(benchParts);
 const benchPivot=new THREE.Group(); scene.add(benchPivot);
 
 function fmt(g,v){ if(v==null) return '—'; return Math.round(v)+' '+GOALS[g].unit; }
-function loadDesign(){ try{ const d=JSON.parse(localStorage.getItem(SKEY3)||'null'); if(d&&d['3,3']) return d; }catch(e){} return newDesign(LV); }
+// every visit starts with an empty board (just Pip). The last build is still saved under SKEY3, but not loaded.
+function loadDesign(){ return newDesign(LV); }
 function saveDesign(){ try{ localStorage.setItem(SKEY3,JSON.stringify(GS.design)); }catch(e){} }
 let hintT=0; function showHint(t){ const h=$('hint'); if(!t){ h.hidden=true; return; } $('hintT').textContent=t; h.hidden=false; clearTimeout(hintT); hintT=setTimeout(()=>h.hidden=true,6500); }
 function callout(big,small){ const c=$('callout'); c.innerHTML=`<b>${big}</b>`+(small?`<span>${small}</span>`:''); c.classList.remove('go'); void c.offsetWidth; c.classList.add('go'); }
