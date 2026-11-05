@@ -48,6 +48,32 @@ function buildItems(){
     label.onclick=()=>pickTool(k); document.body.appendChild(label);
     ITEMS[k]={g,model,stand,ring,label,hop:-9,lift:0,spin:-.35}; });
 }
+// the budget meter: one block for each part on the board, sized by what it cost, and a dashed space for what's left.
+// Hovering a part on the table (or holding one) shows, striped, what it would take.
+function drawBudget(){
+  const d=GS.design||{}, spent=designCost(d), left=LV.budget-spent, B=LV.budget, bar=$('bbar');
+  // blocks are kept between updates: only a part that was just placed grows in, and a removed one simply goes
+  const keys=Object.keys(d).filter(k=>PARTS[d[k].k].cost>0), order=[...LV.parts];
+  keys.sort((a,b)=>order.indexOf(d[a].k)-order.indexOf(d[b].k)||a.localeCompare(b));
+  const have={}; [...bar.querySelectorAll('i.seg')].forEach(el=>{ if(!keys.includes(el.dataset.key)||el.dataset.k!==d[el.dataset.key].k) el.remove(); else have[el.dataset.key]=el; });
+  let peekEl=bar.querySelector('i.peek'); if(!peekEl){ peekEl=document.createElement('i'); peekEl.className='peek'; bar.appendChild(peekEl); }
+  keys.forEach((k,i)=>{ let el=have[k]; if(!el){ el=document.createElement('i'); el.className='seg'+(GS.mode==='build'?' new':''); el.dataset.key=k; el.dataset.k=d[k].k;
+      el.addEventListener('animationend',()=>el.classList.remove('new'),{once:true}); }
+    el.style.width=PARTS[d[k].k].cost/B*100+'%'; el.title=PARTS[d[k].k].name+' '+PARTS[d[k].k].cost;
+    if(bar.children[i]!==el) bar.insertBefore(el,bar.children[i]||peekEl); }); // only move a block if it's out of place
+  $('left').textContent=left; $('budgetbox').classList.toggle('empty',left<=0);
+  showPeek();
+}
+// the striped preview of what a part would cost. It waits a moment before hiding, so it doesn't blink as the pointer crosses a gap.
+let peekHide=0;
+function showPeek(){
+  const d=GS.design||{}, left=LV.budget-designCost(d), B=LV.budget, peekEl=$('bbar').querySelector('i.peek'), note=$('bspent');
+  const peek=GS.mode==='build'?(GS.hoverItem||(GS.hover&&!d[GS.hover.join(',')]?GS.tool:null)):null, pc=peek&&peek!=='erase'?PARTS[peek].cost:0;
+  clearTimeout(peekHide);
+  if(pc){ const fits=pc<=left; peekEl.style.width=(fits?pc:Math.max(0,left))/B*100+'%'; peekEl.classList.add('on'); $('budgetbox').classList.toggle('over',!fits);
+    note.textContent=fits?`${PARTS[peek].name}: ${pc}. You’d have ${left-pc} left.`:`${PARTS[peek].name}: ${pc}. You only have ${left}.`; }
+  else peekHide=setTimeout(()=>{ peekEl.classList.remove('on'); peekEl.style.width='0%'; $('budgetbox').classList.remove('over'); note.textContent=`${designCost(d)} of ${B} spent`; },120);
+}
 function pickTool(k){ if(GS.mode!=='build') return; audioInit(); if(GS.tool!==k){ GS.tool=k; ITEMS[k].hop=GS.t; blip(520,.07,'triangle',.1,780); } refreshBuild(); }
 function itemAt(e){ if(e.clientX==null) return null; const ray=pointerRay(e), hits=ray.intersectObjects(Object.values(ITEMS).flatMap(it=>[it.g,it.stand]),true);
   if(!hits.length) return null; for(const k in ITEMS){ let o=hits[0].object; while(o){ if(o===ITEMS[k].g||o===ITEMS[k].stand) return k; o=o.parent; } } return null; }
@@ -74,7 +100,7 @@ function refreshBuild(){
     p.position.copy(cellPos(gx,gy)); p.userData.key=key; p.userData.home=p.position.clone(); benchParts.add(p); GS.bparts[key]=p; if(d[key].k==='core') GS.pipBench=p; }
   for(const key in GS.bparts) setFade(GS.bparts[key],!att.has(key));
   const cost=designCost(d), loose=Object.keys(d).length-att.size;
-  $('cost').textContent=cost; $('budget').textContent='of '+LV.budget;
+  $('cost').textContent=cost; $('budget').textContent='of '+LV.budget; drawBudget();
   $('warn').textContent=loose?(loose===1?'1 part isn’t joined to Pip. It will fall off.':loose+' parts aren’t joined to Pip. They will fall off.'):'';
   let m=0,cx=0,cy=0; att.forEach(key=>{ const [gx,gy]=key.split(',').map(Number), w=PARTS[d[key].k].mass; m+=w; cx+=(gx-3)*w; cy+=-(gy-3)*w; });
   GS.com=[cx/m,cy/m];
@@ -111,13 +137,15 @@ const snapMarks=[0,1,2,3].map(()=>{ const m=new THREE.Mesh(new THREE.BoxBufferGe
 const GHOSTS={};
 function hoverAll(e){
   const touch=e.pointerType==='touch';
-  const item=GS.mode==='build'&&!touch?itemAt(e):null; GS.hoverItem=item;
-  const c=GS.mode==='build'&&!touch&&!item?cellAt(e):null; GS.hover=c;
+  const dragging=DRAG&&DRAG.active;
+  const item=GS.mode==='build'&&!touch&&!dragging?itemAt(e):null; if(item!==GS.hoverItem){ GS.hoverItem=item; showPeek(); }
+  const c=GS.mode==='build'&&(!touch||dragging)&&!item?cellAt(e):null; const was=GS.hover&&GS.hover.join(); GS.hover=c; if((c&&c.join())!==was) showPeek();
   Object.values(GHOSTS).forEach(g=>g.visible=false); hoverBox.visible=!!c; snapMarks.forEach(m=>m.visible=false);
-  $('c').style.cursor=c||item?'pointer':'';
+  const grabbable=c&&GS.design[c.join(',')]&&!PARTS[GS.design[c.join(',')].k].fixed&&GS.tool!=='erase';
+  $('c').style.cursor=dragging?'grabbing':item&&item!=='erase'||grabbable?'grab':c||item?'pointer':'';
   if(!c) return; const p=cellPos(...c), key=c.join(','), cur=GS.design[key];
   hoverBox.position.set(p.x,p.y,-.7);
-  if(GS.tool!=='erase'&&!cur){ const g=GHOSTS[GS.tool]||(GHOSTS[GS.tool]=(()=>{ const g=makePart(GS.tool); setFade(g,true); scene.add(g); return g; })()); g.visible=true; g.position.copy(p);
+  if(GS.tool!=='erase'&&!cur){ if(!dragging){ const g=GHOSTS[GS.tool]||(GHOSTS[GS.tool]=(()=>{ const g=makePart(GS.tool); setFade(g,true); scene.add(g); return g; })()); g.visible=true; g.position.copy(p); }
     const att=attached(GS.design); touching(GS.design,...c).filter(([x,y])=>att.has(x+','+y)).forEach(([x,y,a,b],i)=>{ const m=snapMarks[i]; m.visible=true;
       m.position.set(p.x+a*.5,p.y-b*.5,.62); m.rotation.z=a?Math.PI/2:0; }); }
 }
@@ -132,14 +160,83 @@ function tapAny(e){
     blip(240,.12,'triangle',.12,140); buzz(8); ITEMS.erase.hop=GS.t; refreshBuild(); saveDesign(); hoverAll(e); return; }
   if(cur&&cur.k===tool){ GS.bparts[kk].userData.drop=GS.t-.15; return; }
   const cost=designCost(GS.design)-(cur?PARTS[cur.k].cost:0)+PARTS[tool].cost;
-  if(cost>LV.budget){ blip(150,.18,'square',.07); const cb=$('costbox'); cb.classList.remove('nope'); void cb.offsetWidth; cb.classList.add('nope'); showHint('Over budget. Remove a part to free some up.'); return; }
+  if(cost>LV.budget){ blip(150,.18,'square',.07); const cb=$('budgetbox'); cb.classList.remove('nope'); void cb.offsetWidth; cb.classList.add('nope'); showHint('Over budget. Remove a part to free some up.'); return; }
   GS.design[kk]={k:tool,d:defaultDir(LV,tool)}; blip(700,.05,'triangle',.08,500);
   refreshBuild(); placeFX(kk); saveDesign(); hoverAll(e);
 }
 
+/* ---------- drag and drop ----------
+   Press on a part on the table (or a part on the board) and move: it lifts into your hand and follows the pointer,
+   leaning as it swings. Over the board it hovers in front of the square it will land on, with snap marks showing.
+   Let go over a square and it drops in and snaps. Let go anywhere else and a table part flies back to its stand;
+   a part taken off the board is removed (and its cost comes back). A press without a move is still a click. */
+let DRAG=null; const RETURNS=[];
+function onDown(e){
+  if(GS.mode!=='build') return; audioInit();
+  const item=itemAt(e), c=item?null:cellAt(e), key=c&&c.join(','), cur=key&&GS.design[key];
+  const from=item&&item!=='erase'?'table':cur&&!PARTS[cur.k].fixed&&GS.tool!=='erase'?key:null;
+  if(from){ DRAG={k:from==='table'?item:cur.k, d:cur?cur.d:null, from, x0:e.clientX, y0:e.clientY, e, active:false, id:e.pointerId};
+    try{ $('c').setPointerCapture(e.pointerId); }catch(_){} return; }
+  tapAny(e);
+}
+function onMove(e){
+  if(DRAG&&!DRAG.active&&Math.hypot(e.clientX-DRAG.x0,e.clientY-DRAG.y0)>6) startDrag(e);
+  if(DRAG&&DRAG.active) dragTo(e);
+  hoverAll(e);
+}
+function onUp(e){ if(!DRAG) return; const D=DRAG; DRAG=null; try{ $('c').releasePointerCapture(D.id); }catch(_){}
+  if(!D.active){ tapAny(D.e); return; } dropDrag(D,e); hoverAll(e); }
+function startDrag(e){
+  const D=DRAG; D.active=true; GS.tool=D.k;
+  const held=makePart(D.k); scene.add(held); D.obj=held; D.vx=0;
+  if(D.from==='table'){ const it=ITEMS[D.k]; held.position.copy(it.g.position); held.rotation.y=it.spin; it.model.visible=false; }
+  else { held.position.copy(GS.bparts[D.from].position); delete GS.design[D.from]; }
+  D.pos=held.position.clone(); D.want=held.position.clone();
+  blip(620,.06,'triangle',.09,900); buzz(6); refreshBuild();
+}
+function dragTo(e){
+  const D=DRAG, c=cellAt(e), hit=new THREE.Vector3();
+  if(c) D.want.copy(cellPos(...c)).add(new THREE.Vector3(0,.12,1.1));         // hovers just in front of its square
+  else if(pointerRay(e).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,0,1),-1.4),hit)) D.want.copy(hit); // free in the air
+  if(c&&(!D.cell||D.cell.join()!==c.join())) blip(900+Math.random()*80,.02,'square',.025); // a tick as it passes over each square
+  D.cell=c;
+}
+function dropDrag(D,e){
+  const c=cellAt(e), key=c&&c.join(','), cur=key&&GS.design[key];
+  const ok=c&&!(cur&&PARTS[cur.k].fixed), cost=ok?designCost(GS.design)-(cur?PARTS[cur.k].cost:0)+PARTS[D.k].cost:0;
+  if(ok&&cost<=LV.budget){
+    scene.remove(D.obj); if(D.from==='table') ITEMS[D.k].model.visible=true;
+    GS.design[key]={k:D.k,d:D.d!=null?D.d:defaultDir(LV,D.k)}; GS.tap={x:c[0]-3,y:-(c[1]-3),t:GS.t};
+    blip(700,.05,'triangle',.08,500); refreshBuild(); placeFX(key); GS.bparts[key].userData.drop=GS.t-.06; saveDesign(); return; }
+  if(ok){ blip(150,.18,'square',.07); const cb=$('budgetbox'); cb.classList.remove('nope'); void cb.offsetWidth; cb.classList.add('nope'); showHint('Over budget. Remove a part to free some up.'); }
+  else if(cur&&PARTS[cur.k].fixed) showHint('That’s Pip’s seat. Build around Pip.');
+  if(D.from==='table') flyBack(D.obj,ITEMS[D.k].g.position.clone(),()=>{ ITEMS[D.k].model.visible=true; ITEMS[D.k].hop=GS.t; });
+  else if(ok||(cur&&PARTS[cur.k].fixed)){ // couldn't go there: back to where it was
+    const home=cellPos(...D.from.split(',').map(Number)); flyBack(D.obj,home,()=>{ GS.design[D.from]={k:D.k,d:D.d}; refreshBuild(); saveDesign(); }); }
+  else { // dropped off the board: it's removed, and the cost comes back
+    const p=D.obj.position; for(let i=0;i<7;i++) puff(p.x+(Math.random()-.5)*.6,p.y+(Math.random()-.5)*.6,p.z,(Math.random()-.5)*2.5,(Math.random()-.5)*2.5,.28,.45);
+    word('Removed',p.clone().add(new THREE.Vector3(0,.7,0)),'small'); scene.remove(D.obj); blip(240,.12,'triangle',.12,140); buzz(8); ITEMS.erase.hop=GS.t; saveDesign(); refreshBuild(); }
+}
+// a part that wasn't placed swoops back in an arc, then lands
+function flyBack(obj,to,done){ blip(380,.15,'sine',.06,700); RETURNS.push({obj,from:obj.position.clone(),to,t:0,done}); }
+function cancelDrag(){ if(!DRAG) return; const D=DRAG; DRAG=null; if(!D.active) return;
+  if(D.from==='table') flyBack(D.obj,ITEMS[D.k].g.position.clone(),()=>{ ITEMS[D.k].model.visible=true; });
+  else flyBack(D.obj,cellPos(...D.from.split(',').map(Number)),()=>{ GS.design[D.from]={k:D.k,d:D.d}; refreshBuild(); saveDesign(); }); }
+function animateDrag(dt){
+  const D=DRAG;
+  if(D&&D.active){ const o=D.obj, k=RM?1:1-Math.pow(.00002,dt), px=o.position.x;
+    o.position.lerp(D.want,k); D.vx+=((o.position.x-px)/Math.max(dt,1e-3)-D.vx)*Math.min(1,dt*12);
+    // it leans into the swing and bobs a little, like something held up by its top
+    o.rotation.z=RM?0:clamp(-D.vx*.035,-.5,.5); o.rotation.y+=(0-o.rotation.y)*Math.min(1,dt*8);
+    const s=1.12+(RM?0:Math.sin(GS.t*9)*.02); o.scale.set(s,s,s); }
+  for(let i=RETURNS.length-1;i>=0;i--){ const R=RETURNS[i]; R.t+=dt/.38; const u=Math.min(1,R.t), e=1-Math.pow(1-u,3);
+    R.obj.position.lerpVectors(R.from,R.to,e); R.obj.position.y+=Math.sin(u*Math.PI)*.9; R.obj.rotation.z*=.85; R.obj.scale.setScalar(1.12-.12*e);
+    if(u>=1){ scene.remove(R.obj); RETURNS.splice(i,1); R.done(); } }
+}
+
 // frame the board and the parts table in whatever space the header and the buttons leave
 function fitBuildCam(){
-  const H=INKR.H, W=INKR.W, top=Math.max($('top').getBoundingClientRect().bottom,$('trail').getBoundingClientRect().bottom)+6, bot=$('dock').hidden?H-10:$('dock').getBoundingClientRect().top-34;
+  const H=INKR.H, W=INKR.W, top=Math.max($('top').getBoundingClientRect().bottom,$('trail').getBoundingClientRect().bottom)+6, bot=$('dock').hidden?H-10:$('dock').getBoundingClientRect().top-44;
   const pts=[[-4,BENCH_Y+3.95,-1],[4.2,BENCH_Y+3.95,-1],[-TABLE.gap*TOOLS.length/2-.3,TABLE.y-.4,TABLE.z+1],[TABLE.gap*TOOLS.length/2+.3,TABLE.y-.4,TABLE.z+1]].map(a=>new THREE.Vector3(...a));
   const C=cam.clone(); let look=new THREE.Vector3(0,(BENCH_Y+TABLE.y)/2+1,0), dist=26;
   const ty0=1-2*top/H, ty1=1-2*bot/H, tx=.94; // the usable box, in screen units (-1..1)
@@ -152,7 +249,7 @@ function fitBuildCam(){
 
 /* ---------- launching ---------- */
 function launch(){
-  if(GS.mode!=='build') return; audioInit();
+  if(GS.mode!=='build') return; audioInit(); if(DRAG) cancelDrag(); RETURNS.forEach(R=>{ R.t=1; }); animateDrag(0);
   const S=makeSim(GS.design,LV); GS.S=S; GS.mode='run'; GS.pre=RM?.2:1.15; GS.acc=0; GS.got=0; GS.endT=0; GS.lastV=[0,0]; GS.spS=0;
   GS.R={x:S.x,y:S.y,a:S.a,spin:0}; GS.prev=GS.R;
   saveDesign();
@@ -247,10 +344,12 @@ function toBuild(){
 $('skip').onclick=()=>{ const S=GS.S; if(S&&!S.done&&GS.pre<=0){ let i=0; while(!S.done&&i<45/S.dt){ stepSim(S,S.dt); i++; } GS.endT=.6; } };
 $('launch').onclick=launch;
 $('clear').onclick=()=>{ GS.design=newDesign(LV); refreshBuild(); saveDesign(); blip(200,.2,'triangle',.1,90); };
-$('c').addEventListener('pointerdown',tapAny);
-$('c').addEventListener('pointermove',hoverAll); $('c').addEventListener('pointerleave',()=>hoverAll({}));
+$('c').addEventListener('pointerdown',onDown);
+$('c').addEventListener('pointermove',onMove); $('c').addEventListener('pointerup',onUp); $('c').addEventListener('pointercancel',cancelDrag);
+$('c').addEventListener('pointerleave',()=>{ if(!DRAG) hoverAll({}); });
 // keys: number keys pick parts, R picks Remove, space launches
 addEventListener('keydown',e=>{ if(e.repeat) return;
+  if(e.key==='Escape'&&DRAG){ cancelDrag(); return; }
   if(GS.mode==='build'){ const i=+e.key-1;
     if(i>=0&&i<TOOLS.length) pickTool(TOOLS[i]);
     else if(e.key==='r'||e.key==='Backspace') pickTool('erase');
@@ -298,6 +397,7 @@ function animate(dt){
     for(const key in GS.bparts){ const u=GS.bparts[key].userData;
       u.spin.forEach(o=>{ if(o.name==='wheel_spin'){ if(L.driven.has(key)) o.rotation.z=-GS.benchSpin; } else if(L.powered.has(key)) o.rotation.z=(o.name==='motor_gearF'?-1:1)*GS.benchSpin*3; }); } }
   if(GS.mode==='build') animateItems(dt);
+  animateDrag(dt);
   stepFX(dt); stepWords(dt);
   FLAGS.forEach((f,i)=>{ f.rotation.y=RM?0:Math.sin(GS.t*2.4+i)*.18; });
   CLOUDS.forEach(c=>{ c.position.x+=c.userData.drift*dt; });

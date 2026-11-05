@@ -5,14 +5,36 @@
   border:1.5px dashed var(--ink);border-radius:999px;padding:2px 8px;background:var(--paper);pointer-events:none}
 #tray{display:none}
 
-/* the bottom bar: what the chosen part does, what powers what, and the buttons */
-#dock{left:50%;right:auto;width:min(980px,calc(100% - 32px));transform:translateX(-50%);background:none;padding:0 0 calc(env(safe-area-inset-bottom,0px) + 14px);
-  display:grid;grid-template-columns:1fr auto;align-items:end;gap:6px 16px}
+/* the bottom shelf: a solid strip of paper under the scene, so nothing in the world shows through the words */
+#costbox,#budget{display:none}
+#dock{left:0;right:0;width:auto;transform:none;background:var(--paper);border-top:2.5px solid var(--ink);
+  padding:12px 20px calc(env(safe-area-inset-bottom,0px) + 14px);
+  display:grid;grid-template-columns:minmax(230px,280px) 1fr auto;align-items:center;gap:6px 22px}
 #dock #warn{grid-column:1/-1;margin:0;justify-self:center}
 #dock .txt{min-width:0}
 #power{font-size:13.5px;font-weight:800;min-height:1.3em;margin-bottom:2px}
 #info{margin:0;min-height:1.4em}
-#dock .acts{margin:0;grid-template-columns:auto 220px}
+#dock .acts{margin:0;grid-template-columns:auto 200px}
+#tag{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 70px)}
+
+/* the budget meter */
+#budgetbox{display:grid;gap:5px}
+#budgetbox .bl{display:flex;align-items:baseline;gap:8px}
+#budgetbox .bl b{font-family:var(--display);font-weight:900;font-size:34px;line-height:.9;font-variant-numeric:tabular-nums}
+#budgetbox .bl span{font-weight:800;font-size:14px}
+#budgetbox .bar{display:flex;height:16px;border:2.5px solid var(--ink);border-radius:6px;overflow:hidden;background:
+  repeating-linear-gradient(90deg,transparent 0 6px,rgba(0,0,0,.18) 6px 7px)}
+#budgetbox .bar i{display:block;height:100%;flex:none}
+#budgetbox .bar i.seg{background:var(--ink);box-shadow:inset -2px 0 0 var(--paper);transition:width .2s}
+#budgetbox .bar i.seg.new{animation:seg .35s cubic-bezier(.34,1.56,.64,1)}
+#budgetbox .bar i.peek{width:0;background:repeating-linear-gradient(45deg,var(--ink) 0 2px,transparent 2px 5px);opacity:0;transition:width .15s ease-out,opacity .12s}
+#budgetbox .bar i.peek.on{opacity:1}
+#budgetbox.over .bar{outline:2px dashed var(--ink);outline-offset:2px}
+#budgetbox small{font-size:12.5px;font-weight:700;color:var(--soft);height:1.25em;line-height:1.25em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} /* one fixed line, so the shelf never changes height */
+#budgetbox.empty .bl span::after{content:" — all spent"}
+#budgetbox.nope{animation:nope .3s}
+@keyframes seg{0%{transform:scaleX(.1);transform-origin:left}100%{transform:none;transform-origin:left}}
+
 #hint{top:calc(env(safe-area-inset-top,0px) + 78px)}
 
 /* labels under the parts on the table: name, cost and the key that picks it */

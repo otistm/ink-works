@@ -6,7 +6,7 @@ const BENCH_Y=7.0;           // height of Pip's cell on the bench (high enough f
 const PART3D={};             // templates loaded from models/parts.glb
 
 function loadParts(done){
-  new THREE.GLTFLoader().load('models/parts.glb', g=>{
+  new THREE.GLTFLoader().load('models/parts.glb?v='+VERSION, g=>{
     ['core','frame','wheel','motor','battery'].forEach(k=>{ const o=g.scene.getObjectByName('part_'+k); o.parent.remove(o); o.position.set(0,0,0); PART3D[k]=o; });
     done();
   }, undefined, e=>{ console.error(e); $('hintT').textContent='Couldn’t load the parts.'; $('hint').hidden=false; });

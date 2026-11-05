@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.1
+- 3D test: Pip's face is clear again. The raised frame round the face and its four corner screws are gone; Pip keeps the eyes, smile, antenna and ear knobs.
+
+## 0.7.0
+- 3D test: drag and drop.
+  - Grab a part off the table and it lifts into your hand, leaning as you swing it. Over the board it hovers in front of the square it will land on, with a soft tick at each square and snap marks on the sides that will join. Let go and it drops in and snaps.
+  - Let go anywhere else and the part swoops back to its stand. Press Escape mid-drag to do the same.
+  - Parts already on the board can be dragged to another square, or off the board to remove them ("Removed", and the cost comes back).
+  - Clicking still works as before: click a part, then click a square.
+
+## 0.6.1
+- 3D test: the spend bar is steady. Moving the pointer no longer makes every block replay its grow-in animation, so only a part you just placed grows in. The striped preview slides rather than blinking as you cross gaps between parts. The line under the bar always stays on one line, so the shelf and the camera don't jump.
+
+## 0.6.0
+- 3D test polish:
+  - A clear budget. A meter at the bottom left shows a big "left to spend" number and a bar with one block for each part you've placed. Point at a part on the table, or at an empty square, and the bar shows striped how much it would take, with a line like "A motor costs 20. You'd have 40 left." The meter shakes when something won't fit.
+  - The part description, the power line and the Clear and Launch buttons sit on a solid paper shelf along the bottom, and the board and table are framed above it, so nothing overlaps at any desktop size.
+  - The test page always loads its newest files, so changes show up without clearing the browser.
+
 ## 0.5.0
 - 3D test, round three:
   - Smooth runs. The machine glides between physics steps instead of jumping, the camera keeps exact pace along the road, and bumps no longer shake the zoom. The scenery is drawn in a few big batches instead of 1,500 pieces, effects reuse their ink, and the picture drops a little sharpness by itself if a computer can't keep up.
