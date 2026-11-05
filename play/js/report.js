@@ -79,7 +79,7 @@ function drawPage(t){
   g.fillStyle='#5c5c5c'; g.font='800 26px Figtree, system-ui, sans-serif'; g.fillText('MACHINE',sx+16,sy+40);
   // 2: the distance, written in big
   const y2=sy+sh+130;
-  g.fillStyle='#5c5c5c'; g.font='800 30px Figtree, system-ui, sans-serif'; g.fillText('DISTANCE',150,y2-70);
+  g.fillStyle='#5c5c5c'; g.font='800 30px Figtree, system-ui, sans-serif'; g.fillText(D.label||'DISTANCE',150,y2-70);
   writeIn(g,D.value,150,y2+30,'italic 900 136px Fraunces, Georgia, serif',ph(1.05,1.6));
   if(D.best) writeIn(g,D.best,PAGE_W-120,y2+20,'700 30px Figtree, system-ui, sans-serif',ph(1.5,1.8),'right');
   // 3: the medal checklist, ticked for each one earned

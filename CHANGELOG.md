@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.14.0
+- More rocket parts in Liftoff, so you can build different kinds of rocket:
+  - Booster (12): small and cheap, a gentle push. Cluster a few round a big tank for a long, gentle climb.
+  - Big rocket (40): a huge push but heavy and thirsty. Pair it with a big tank for a fast, short blast.
+  - Slow burner (18): a weak push that lasts. A cheap, steady climber.
+  - Big tank (18): twice a fuel tank's fuel in one square.
+  - Fins (5): keep a rocket flying straight. They rescue a lopsided build (a frame on one side flew 4 m without fins, 139 m with), but cost a little height on a straight one.
+  - All modelled in Blender. Bigger rockets have bigger flames, every tank's gauge drains, and the rocket line counts all of them ("3 rockets, all pointing up: about 8.2 s of push.").
+- The parts table fits ten parts: they sit closer, and the labels stack the key and price over the name. Press 0 for the tenth part.
+- The opening hint gives each machine's own tip.
+- If a rocket tumbles, the test report suggests balancing it or adding fins.
+- The original rocket, fuel tank and nose cone fly exactly as before, and every gold medal is still winnable.
+
+## 0.13.0
+- A second machine: Liftoff. Build a rocket and fly it as high as you can (bronze 80 m, silver 160 m, gold 240 m, budget 70). It opens once you have a bronze in First roll; a picker under the title switches between machines.
+  - New parts modelled in Blender: a rocket (fins, porthole, nozzle), a fuel tank with a gauge window that drains as it burns, and a nose cone. Click a placed rocket or nose cone to turn it a quarter turn; it swings round.
+  - The line above the parts says what your rockets will do, e.g. "1 rocket, pointing up, with 2 fuel tanks: about 11.5 s of push."
+  - The rocket launches from a round pad ringed with hazard tape and cones, beside a tall lattice tower marked every 5 m and signed every 10 m, with a flag at each medal height. The camera climbs with you.
+  - Rockets burn with a fat paper flame that flickers, smoke pours out behind, the machine shudders and roars, and "Out of fuel" pops when it runs dry.
+  - The test report says HEIGHT for this machine, and tells you if nothing was pushing up or the rockets weren't pointing up.
+
 ## 0.12.0
 - Ink Works is now the 3D game. Play opens the ink-drawn 3D workshop version of First roll, which is the only machine for now; more will follow in this style. The front page describes the new game.
 - The earlier 2D game, with all eleven machines, is kept safe on the `classic-2d` branch. Players' 2D progress stays in their browser, untouched.

@@ -10,6 +10,12 @@ const PARTS={
   rocket: {name:'Rocket',    cost:25, mass:1,   rot:true, desc:'Big push, short burn. Tap it again to turn it.'},
   fuel:   {name:'Fuel tank', cost:10, mass:0.4, desc:'Longer rocket burns. Heavy when full.'},
   nose:   {name:'Nose cone', cost:10, mass:0.3, rot:true, desc:'Cuts through the air. Point it forward.'},
+  // more rockets: each pushes along its arrow and burns from the shared fuel at its own rate (ROCKETS below)
+  booster:{name:'Booster',   cost:12, mass:0.45, rot:true, desc:'Small and cheap. A gentle push, light to carry. Tap it again to turn it.'},
+  bigrocket:{name:'Big rocket', cost:40, mass:1.9, rot:true, desc:'A huge push, but heavy and thirsty: it drinks fuel fast. Tap it again to turn it.'},
+  slowburn:{name:'Slow burner', cost:18, mass:0.6, rot:true, desc:'A weak push that lasts and lasts. Tap it again to turn it.'},
+  bigtank:{name:'Big tank',  cost:18, mass:0.7, desc:'Twice the fuel of a fuel tank in one square. Heavy when full.'},
+  fin:    {name:'Fins',      cost:5,  mass:0.2, desc:'Keep a rocket flying straight.'},
   wing:   {name:'Wing',      cost:15, mass:0.4, desc:'Lifts at speed and keeps you steady.'},
   prop:   {name:'Propeller', cost:20, mass:0.6, rot:true, desc:'Steady push. Needs a battery.'},
   balloon:{name:'Balloon',   cost:15, mass:0.2, desc:'Floats up. Weaker the higher it gets.'},
@@ -30,6 +36,11 @@ const PARTS={
 const K={ rocketF:70, rocketBurn:1.5, tankFuel:5, fuelMass:.22, motorF:34, motorVmax:40, battery:8, propF:24, propVmax:32,
   balloonF:16, balloonTop:150, cd:.018, noseCut:.45, cl:.34, wheelR:.6, chute:.3,
   day:86400 };
+// rockets: F is the push, use is how fast it drinks from the shared fuel (per second), burn is the fuel it brings itself
+const ROCKETS={ rocket:{F:70,use:1,burn:1.5}, booster:{F:36,use:.55,burn:1.2}, bigrocket:{F:150,use:2.3,burn:2.5}, slowburn:{F:44,use:.65,burn:2.5} };
+// fuel tanks: how much fuel each holds
+const TANKS={ fuel:5, bigtank:10 };
+const isRocket=k=>!!ROCKETS[k];
 const DIRS=[[1,0],[0,1],[-1,0],[0,-1]]; // 0 right, 1 up, 2 left, 3 down (body frame, y up)
 
 // terrain: height at x, and its slope
@@ -48,7 +59,7 @@ const LEVELS=[
    blurb:'Drive as far as you can.', hint:'Tap a part, then tap the grid. Wheels go on the bottom.'},
   {id:'dash',  name:'The dash',     goal:'speed', marks:[45,60,70],    budget:110, parts:['frame','wheel','motor','battery','nose'],
    blurb:'Hit top speed on the flat.', hint:'A nose cone pointed forward cuts the air. Tap a placed cone to turn it.'},
-  {id:'lift',  name:'Liftoff',      goal:'alt',   marks:[80,160,240],  budget:70,  parts:['frame','rocket','fuel','nose'],
+  {id:'lift',  name:'Liftoff',      goal:'alt',   marks:[80,160,240],  budget:70,  parts:['frame','rocket','booster','bigrocket','slowburn','fuel','bigtank','nose','fin'],
    blurb:'Fly as high as you can.', hint:'Rockets push the way their nose points. Keep them under the balance dot.'},
   {id:'float', name:'Hot air',      goal:'alt',   marks:[25,50,70],    budget:95,  parts:['frame','balloon'], fixed:{'3,5':'crate'},
    blurb:'Lift the crate off the ground.', hint:'Join the crate to Pip with a frame. Balloons stick to anything they touch.'},
@@ -92,24 +103,27 @@ function makeSim(design,lv){
     const p={k:c.k,d:c.d||0,gx,gy,bx:gx-3,by:-(gy-3),m:PARTS[c.k].mass,key};
     (att.has(key)?P:loose).push(p); }
   const cnt=k=>P.filter(p=>p.k===k).length;
-  const n={rocket:cnt('rocket'),fuel:cnt('fuel'),motor:cnt('motor'),battery:cnt('battery'),prop:cnt('prop'),wing:cnt('wing'),balloon:cnt('balloon'),wheel:cnt('wheel'),chute:cnt('chute')};
-  const fuel0=n.rocket?n.fuel*K.tankFuel+n.rocket*K.rocketBurn:0;
+  const n={rocket:cnt('rocket'),fuel:cnt('fuel'),motor:cnt('motor'),battery:cnt('battery'),prop:cnt('prop'),wing:cnt('wing'),balloon:cnt('balloon'),wheel:cnt('wheel'),chute:cnt('chute'),
+    fin:cnt('fin'), rockets:P.filter(p=>isRocket(p.k)).length, use:P.reduce((s,p)=>s+(isRocket(p.k)?ROCKETS[p.k].use:0),0)};
+  // the tanks' fuel (what makes them heavy), and all the fuel: tanks plus what each rocket brings
+  const tankCap=P.reduce((s,p)=>s+(TANKS[p.k]?(p.k==='fuel'?K.tankFuel:TANKS[p.k]):0),0);
+  const fuel0=n.rockets?tankCap+P.reduce((s,p)=>s+(isRocket(p.k)?(p.k==='rocket'?K.rocketBurn:ROCKETS[p.k].burn):0),0):0;
   const dryM=P.reduce((s,p)=>s+p.m,0);
-  const fuelMass0=n.fuel*K.tankFuel*K.fuelMass;
+  const fuelMass0=tankCap*K.fuelMass;
   // centre of mass with full tanks
   let cx=0,cy=0,M0=dryM+fuelMass0;
-  P.forEach(p=>{ const m=p.m+(p.k==='fuel'?K.tankFuel*K.fuelMass:0); cx+=p.bx*m; cy+=p.by*m; }); cx/=M0; cy/=M0;
+  P.forEach(p=>{ const m=p.m+(TANKS[p.k]?(p.k==='fuel'?K.tankFuel:TANKS[p.k])*K.fuelMass:0); cx+=p.bx*m; cy+=p.by*m; }); cx/=M0; cy/=M0;
   P.forEach(p=>{ p.rx=p.bx-cx; p.ry=p.by-cy; });
   let I=0; P.forEach(p=>{ I+=p.m*(p.rx*p.rx+p.ry*p.ry+1/6); }); I+=fuelMass0*1; I=Math.max(I,.5);
   // thrust direction defines "forward"
-  let fx=0,fy=0; P.forEach(p=>{ if(p.k==='rocket'||p.k==='prop'){ fx+=DIRS[p.d][0]; fy+=DIRS[p.d][1]; } });
+  let fx=0,fy=0; P.forEach(p=>{ if(isRocket(p.k)||p.k==='prop'){ fx+=DIRS[p.d][0]; fy+=DIRS[p.d][1]; } });
   let fwd=null; const fl=Math.hypot(fx,fy); if(fl>.01) fwd=[fx/fl,fy/fl]; else if(!n.balloon&&lv.goal!=='soft') fwd=[1,0];
   // nose cones pointing forward cut drag
   const f0=fwd||[0,1]; const noses=P.filter(p=>p.k==='nose'&&DIRS[p.d][0]*f0[0]+DIRS[p.d][1]*f0[1]>.5).length;
   const cd=K.cd*P.length*(noses?K.noseCut:1)+(n.balloon*.06);
   // rest on the ground: lowest point touches
   let low=1e9; P.forEach(p=>{ low=Math.min(low, p.ry-(p.k==='wheel'?K.wheelR:.5)); });
-  const S={kind:'machine',dt:1/300,P,loose,n,T,lv,cd,I,M:M0,dryM,fuel:fuel0,fuel0,energy:n.battery*K.battery,energy0:n.battery*K.battery,fwd,noses,
+  const S={kind:'machine',dt:1/300,P,loose,n,T,lv,cd,I,M:M0,dryM,fuel:fuel0,fuel0,tankCap,energy:n.battery*K.battery,energy0:n.battery*K.battery,fwd,noses,
     x:0,y:T.h(0)-low+.01+(lv.start||0),a:0,vx:0,vy:0,w:0,t:0,x0:0,y0:0,land:null,open:0,
     best:{dist:0,alt:0,speed:0}, done:false, why:'', still:0, grounded:0, wheelsDown:0, spin:0, burning:false, driving:false, propping:false, contacts:[]};
   S.x0=S.x; S.y0=S.y;
@@ -122,14 +136,14 @@ function stepSim(S,dt){
   const toW=(x,y)=>[x*ca-y*sa, x*sa+y*ca];
   let Fx=0,Fy=0,tau=0;
   const add=(fx,fy,rx,ry)=>{ Fx+=fx; Fy+=fy; tau+=rx*fy-ry*fx; };
-  const M=S.dryM+Math.min(S.fuel,n.fuel*K.tankFuel)*K.fuelMass;
+  const M=S.dryM+Math.min(S.fuel,S.tankCap)*K.fuelMass;
   S.M=Math.max(.3,M);
   const sp=Math.hypot(S.vx,S.vy);
   Fy-=S.M*G;
   // rockets
-  S.burning=n.rocket>0&&S.fuel>0;
-  if(S.burning){ S.fuel=Math.max(0,S.fuel-n.rocket*dt);
-    P.forEach(p=>{ if(p.k!=='rocket') return; const [dx,dy]=toW(...DIRS[p.d]), [rx,ry]=toW(p.rx,p.ry); add(dx*K.rocketF,dy*K.rocketF,rx,ry); }); }
+  S.burning=n.rockets>0&&S.fuel>0;
+  if(S.burning){ S.fuel=Math.max(0,S.fuel-n.use*dt);
+    P.forEach(p=>{ if(!isRocket(p.k)) return; const F=p.k==='rocket'?K.rocketF:ROCKETS[p.k].F, [dx,dy]=toW(...DIRS[p.d]), [rx,ry]=toW(p.rx,p.ry); add(dx*F,dy*F,rx,ry); }); }
   // propellers and motors share the batteries
   const drain=(S.energy>0?(n.prop+(S.wheelsDown>0?n.motor:0)):0);
   S.propping=n.prop>0&&S.energy>0; S.driving=n.motor>0&&S.energy>0;
@@ -172,9 +186,11 @@ function stepSim(S,dt){
   S.wheelsDown=wheelsDown; S.grounded=touching;
   if(touching&&S.land==null&&S.lv.start){ S.land=sp*3.6; S.landT=S.t; }
   // spin: damping, and weathervane in the air
-  tau-=S.w*S.I*(.4+.03*sp*(n.wing||S.noses?2:1));
+  tau-=S.w*S.I*(.4+.03*sp*(n.wing||S.noses||n.fin?2:1)+.9*n.fin);  // fins steady the spin
   if(!touching&&S.fwd&&sp>3){ const [ux,uy]=toW(...S.fwd), vx=S.vx/sp, vy=S.vy/sp;
-    const err=Math.atan2(ux*vy-uy*vx, ux*vx+uy*vy); tau+=err*Math.min(sp*sp,900)*.004*(1+n.wing+S.noses)*S.I; }
+    const err=Math.atan2(ux*vy-uy*vx, ux*vx+uy*vy); tau+=err*Math.min(sp*sp,900)*.004*(1+n.wing+S.noses+3*n.fin)*S.I; }
+  // fins steer the machine back toward the way it started, more as it picks up speed (they need air flowing over them)
+  if(n.fin&&!touching){ const ang=Math.atan2(Math.sin(S.a),Math.cos(S.a)); tau+=(-ang*7-S.w*1.6)*Math.min(3,n.fin)*S.I*Math.min(1.4,(sp+2)/9); }
   // integrate
   S.vx+=Fx/S.M*dt; S.vy+=Fy/S.M*dt; S.w+=tau/S.I*dt; S.w=Math.max(-25,Math.min(25,S.w));
   S.x+=S.vx*dt; S.y+=S.vy*dt; S.a+=S.w*dt; S.t+=dt;
@@ -298,4 +314,4 @@ function medalFor(lv,v){ if(v==null) return 0; const m=lv.marks;
   return v>=m[2]?3:v>=m[1]?2:v>=m[0]?1:0; }
 function better(lv,v,best){ if(v==null) return false; if(!best) return true; return GOALS[lv.goal].low?Math.max(v,.001)<best:v>best; } // a perfect 0 is saved as .001
 function runToEnd(design,lv){ const S=makeAny(design,lv); let i=0; while(!S.done&&i<45/S.dt){ stepAny(S,S.dt); i++; } return S; }
-if(typeof module!=='undefined') module.exports={PARTS,LEVELS,GOALS,K,gearSpeeds,BEAM,VEHICLES,ROAD,makeSim,stepSim,makeAny,stepAny,runToEnd,scoreOf,better,newDesign,attached,attachedAny,designCost,medalFor,terrain,DIRS,GW,GH};
+if(typeof module!=='undefined') module.exports={PARTS,LEVELS,GOALS,K,ROCKETS,TANKS,isRocket,gearSpeeds,BEAM,VEHICLES,ROAD,makeSim,stepSim,makeAny,stepAny,runToEnd,scoreOf,better,newDesign,attached,attachedAny,designCost,medalFor,terrain,DIRS,GW,GH};

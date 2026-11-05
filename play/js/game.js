@@ -1,10 +1,26 @@
-/* Ink Works: First roll. Pick parts from the table, build on the board, launch, watch it run, see the result.
-   The rules and the physics are the real game's (../play/js/engine.js); only the drawing is new. */
+/* Ink Works: pick parts from the table, build on the board, launch, watch it run, see the result.
+   The rules and the physics are the real game's (engine.js); only the drawing is new. */
 "use strict";
-const LV=LEVELS[0];
-const SKEY3='inkworks-3d-proto'; // its own save (keep this name: players' builds are stored under it). The 2D game's 'inkworks-save' is never touched.
+// the machines playable in 3D so far, in order; each opens with a bronze on the one before
+const LEVELS3D=['roll','lift'];
+// saves: First roll keeps the original names; later machines add their id (keep these names: players' builds are stored under them).
+// The 2D game's 'inkworks-save' is never touched.
+const saveKey=id=>id==='roll'?'inkworks-3d-proto':'inkworks-3d-proto-'+id;
+const bestOf=id=>{ try{ return +localStorage.getItem(saveKey(id)+'-best')||0; }catch(e){ return 0; } };
+const levelById=id=>LEVELS.find(l=>l.id===id);
+const isOpen=id=>{ const i=LEVELS3D.indexOf(id); if(i<=0) return i===0; const prev=levelById(LEVELS3D[i-1]); return medalFor(prev,bestOf(prev.id))>=1||bestOf(id)>0; };
+const LV=(()=>{ let id=new URLSearchParams(location.search).get('level'); try{ id=id||localStorage.getItem('inkworks-3d-level'); }catch(e){}
+  if(!LEVELS3D.includes(id)||!isOpen(id)) id='roll'; try{ localStorage.setItem('inkworks-3d-level',id); }catch(e){} return levelById(id); })();
+const SKEY3=saveKey(LV.id);
+const ALT=LV.goal==='alt';
+const scoreNow=S=>scoreOf(S);
 const MNAME=['Not yet','Bronze','Silver','Gold'];
 const TOOLS=[...LV.parts,'erase'];
+// the machine picker at the top: switching reloads the page with that machine
+function levelPicker(){ const nav=$('levels'); nav.innerHTML=LEVELS3D.map((id,i)=>{ const l=levelById(id), open=isOpen(id), m=medalFor(l,bestOf(id));
+  return `<button type="button" data-id="${id}" class="${id===LV.id?'on':''}${open?'':' locked'}" ${open?'':'aria-disabled="true"'} title="${open?l.blurb:'Get bronze in '+levelById(LEVELS3D[i-1]).name+' to open it.'}">${m?medalSVG(m,18):''}${l.name}${open?'':' <small>(locked)</small>'}</button>`; }).join('');
+  nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const id=b.dataset.id; if(id===LV.id) return;
+    if(!isOpen(id)){ showHint(b.title); blip(150,.18,'square',.07); return; } const q=new URLSearchParams(location.search); q.set('level',id); location.search=q.toString(); }); }
 const GS={mode:'load', design:null, tool:'frame', S:null, bparts:{}, machine:null, squashG:null, pre:0, acc:0, got:0, endT:0, loose:[], t:0,
   lastV:[0,0], blinkAt:2, benchSpin:0, benchRate:0, hover:null, hoverItem:null, flat:false, sq:0, sqv:0, look:[0,0], antV:0, ant:0, shadow:null,
   gearSpin:0, pipBench:null, tap:null, skipT:0, R:null, spS:0, powered:false};
@@ -41,10 +57,10 @@ function buildItems(){
     const stand=at(new THREE.Mesh(new THREE.CylinderBufferGeometry(.62,.66,.08,40),PAPER()),x,TABLE.y+.04,z); table.add(stand);
     const ring=at(new THREE.Mesh(new THREE.TorusBufferGeometry(.7,.045,8,48),INKM()),x,TABLE.y+.09,z); ring.rotation.x=Math.PI/2; ring.visible=false; table.add(ring);
     const g=new THREE.Group(); at(g,x,TABLE.y+.62,z); table.add(g);
-    const model=k==='erase'?makeRemoveTool():makePart(k); if(k==='wheel') model.scale.setScalar(.82); g.add(model);
+    const model=k==='erase'?makeRemoveTool():makePart(k); model.scale.setScalar((k==='wheel'?.82:1)*(TABLE.small||1)); g.add(model);
     model.rotation.y=-.35;
-    const label=document.createElement('button'); label.type='button'; label.className='tlabel'; label.dataset.k=k;
-    label.innerHTML=`<kbd>${i+1}</kbd><b>${k==='erase'?'Remove':PARTS[k].name}</b>${k==='erase'?'':`<small>${PARTS[k].cost}</small>`}`;
+    const label=document.createElement('button'); label.type='button'; label.className='tlabel'+(TOOLS.length>7?' compact':''); label.dataset.k=k;
+    label.innerHTML=TOOLS.length>7?`<span class="top"><kbd>${(i+1)%10}</kbd>${k==='erase'?'':`<small>${PARTS[k].cost}</small>`}</span><b>${k==='erase'?'Remove':PARTS[k].name}</b>`:`<kbd>${(i+1)%10}</kbd><b>${k==='erase'?'Remove':PARTS[k].name}</b>${k==='erase'?'':`<small>${PARTS[k].cost}</small>`}`;
     label.onclick=()=>pickTool(k); document.body.appendChild(label);
     ITEMS[k]={g,model,stand,ring,label,hop:-9,lift:0,spin:-.35}; });
 }
@@ -96,7 +112,7 @@ const cellPos=(gx,gy)=>new THREE.Vector3(gx-3,BENCH_Y-(gy-3),0);
 function refreshBuild(){
   const d=GS.design, att=attached(d);
   for(const key in GS.bparts){ const b=GS.bparts[key]; if(!d[key]||d[key].k!==b.userData.k){ benchParts.remove(b); delete GS.bparts[key]; } }
-  for(const key in d){ if(GS.bparts[key]) continue; const [gx,gy]=key.split(',').map(Number), p=makePart(d[key].k);
+  for(const key in d){ if(GS.bparts[key]) continue; const [gx,gy]=key.split(',').map(Number), p=makePart(d[key].k,d[key].d);
     p.position.copy(cellPos(gx,gy)); p.userData.key=key; p.userData.home=p.position.clone(); benchParts.add(p); GS.bparts[key]=p; if(d[key].k==='core') GS.pipBench=p; }
   for(const key in GS.bparts) setFade(GS.bparts[key],!att.has(key));
   const cost=designCost(d), loose=Object.keys(d).length-att.size;
@@ -104,13 +120,13 @@ function refreshBuild(){
   $('warn').textContent=loose?(loose===1?'1 part isn’t joined to Pip. It will fall off.':loose+' parts aren’t joined to Pip. They will fall off.'):'';
   let m=0,cx=0,cy=0; att.forEach(key=>{ const [gx,gy]=key.split(',').map(Number), w=PARTS[d[key].k].mass; m+=w; cx+=(gx-3)*w; cy+=-(gy-3)*w; });
   GS.com=[cx/m,cy/m];
-  const L=linksOf(d); GS.L=L; $('power').textContent=powerLine(L);
+  const L=linksOf(d); GS.L=L; $('power').textContent=ALT||L.n.battery+L.n.motor===0&&d&&Object.values(d).some(c=>isRocket(c.k))?rocketLine(d):powerLine(L);
   // the first time a motor gets power, it says so and spins up
   const pw=L.powered.size>0&&L.driven.size>0;
   if(pw&&!GS.powered&&GS.mode==='build'){ const k=[...L.powered][0], [x,y]=cellXY(k);
     setTimeout(()=>{ if(GS.mode!=='build') return; word('Powered!',new THREE.Vector3(x,y+BENCH_Y+.7,.6)); sparkle(x,y+BENCH_Y+.4,.7); GS.benchRate=8; blip(420,.3,'sawtooth',.05,1300); },300); }
   GS.powered=pw;
-  const P=PARTS[GS.tool]; $('info').innerHTML=GS.tool==='erase'?'<b>Remove</b>Click a part to take it off. You get its cost back.':`<b>${P.name}</b>${P.desc}`;
+  const P=PARTS[GS.tool]; $('info').innerHTML=GS.tool==='erase'?'<b>Remove</b>Click a part to take it off. You get its cost back.':`<b>${P.name}</b>${P.desc.replace(/Tap it again to turn it\.?/,'Click it on the board to turn it.').replace(/\bTap\b/g,'Click')}`;
 }
 function pointerRay(e){ const r=$('c').getBoundingClientRect(), v=new THREE.Vector2((e.clientX-r.left)/r.width*2-1, -((e.clientY-r.top)/r.height)*2+1);
   const ray=new THREE.Raycaster(); ray.setFromCamera(v,cam); return ray; }
@@ -145,7 +161,7 @@ function hoverAll(e){
   $('c').style.cursor=dragging?'grabbing':item&&item!=='erase'||grabbable?'grab':c||item?'pointer':'';
   if(!c) return; const p=cellPos(...c), key=c.join(','), cur=GS.design[key];
   hoverBox.position.set(p.x,p.y,-.7);
-  if(GS.tool!=='erase'&&!cur){ if(!dragging){ const g=GHOSTS[GS.tool]||(GHOSTS[GS.tool]=(()=>{ const g=makePart(GS.tool); setFade(g,true); scene.add(g); return g; })()); g.visible=true; g.position.copy(p); }
+  if(GS.tool!=='erase'&&!cur){ if(!dragging){ const g=GHOSTS[GS.tool]||(GHOSTS[GS.tool]=(()=>{ const g=makePart(GS.tool,defaultDir(LV,GS.tool)); setFade(g,true); scene.add(g); return g; })()); g.visible=true; g.position.copy(p); }
     const att=attached(GS.design); touching(GS.design,...c).filter(([x,y])=>att.has(x+','+y)).forEach(([x,y,a,b],i)=>{ const m=snapMarks[i]; m.visible=true;
       m.position.set(p.x+a*.5,p.y-b*.5,.62); m.rotation.z=a?Math.PI/2:0; }); }
 }
@@ -156,6 +172,8 @@ function tapAny(e){
   const kk=gx+','+gy, cur=GS.design[kk], tool=GS.tool;
   GS.tap={x:gx-3,y:-(gy-3),t:GS.t};
   if(cur&&PARTS[cur.k].fixed){ GS.bparts[kk].userData.drop=GS.t-.15; GS.antV+=6; blip(300,.1,'sine',.1,420); showHint(tool==='erase'?'Pip stays. Pip is the passenger.':'That’s Pip, your passenger. Build around Pip.'); return; }
+  if(cur&&PARTS[cur.k].rot&&tool!=='erase'){ cur.d=(cur.d+3)%4; const b=GS.bparts[kk]; b.userData.turnFrom=b.userData.dirNow; b.userData.turnAt=GS.t;
+    blip(760,.06,'square',.05,980); buzz(5); refreshBuild(); saveDesign(); return; }
   if(tool==='erase'){ if(!cur) return; const p=cellPos(gx,gy); delete GS.design[kk]; for(let i=0;i<6;i++) puff(p.x+(Math.random()-.5)*.6,p.y+(Math.random()-.5)*.6,.8,(Math.random()-.5)*2,(Math.random()-.5)*2,.25,.45);
     blip(240,.12,'triangle',.12,140); buzz(8); ITEMS.erase.hop=GS.t; refreshBuild(); saveDesign(); hoverAll(e); return; }
   if(cur&&cur.k===tool){ GS.bparts[kk].userData.drop=GS.t-.15; return; }
@@ -190,7 +208,7 @@ function onUp(e){ if(!DRAG) return; const D=DRAG; DRAG=null; try{ $('c').release
   if(!D.active){ tapAny(D.e); return; } dropDrag(D,e); hoverAll(e); }
 function startDrag(e){
   const D=DRAG; D.active=true; GS.tool=D.k;
-  const held=makePart(D.k); scene.add(held); D.obj=held; D.vx=0;
+  const held=makePart(D.k,D.d!=null?D.d:defaultDir(LV,D.k)); scene.add(held); D.obj=held; D.vx=0;
   if(D.from==='table'){ const it=ITEMS[D.k]; held.position.copy(it.g.position); held.rotation.y=it.spin; it.model.visible=false; }
   else { held.position.copy(GS.bparts[D.from].position); delete GS.design[D.from]; }
   D.pos=held.position.clone(); D.want=held.position.clone();
@@ -257,10 +275,10 @@ function launch(){
   saveDesign();
   if(GS.machine) scene.remove(GS.machine);
   const M=new THREE.Group(), Q=new THREE.Group(); M.add(Q); scene.add(M); GS.machine=M; GS.squashG=Q; GS.mparts=[];
-  S.P.forEach(p=>{ const g=makePart(p.k); g.position.set(p.rx,p.ry,0); g.userData.p=p; Q.add(g); GS.mparts.push(g); });
+  S.P.forEach(p=>{ const g=makePart(p.k,p.d); g.position.set(p.rx,p.ry,0); g.userData.p=p; Q.add(g); GS.mparts.push(g); if(isRocket(p.k)) addFlame(g); });
   const core=S.P.find(p=>p.k==='core'); GS.from=new THREE.Vector3(core.bx-core.rx, BENCH_Y+core.by-core.ry, 0);
   M.position.copy(GS.from); GS.flat=false;
-  GS.loose.forEach(L=>scene.remove(L.o)); GS.loose=S.loose.map(p=>{ const o=makePart(p.k); scene.add(o);
+  GS.loose.forEach(L=>scene.remove(L.o)); GS.loose=S.loose.map(p=>{ const o=makePart(p.k,p.d); scene.add(o);
     return {o,x:p.bx,y:BENCH_Y+p.by,vx:(Math.random()-.5)*2,vy:2+Math.random()*2,a:0,w:(Math.random()-.5)*6}; });
   benchParts.visible=false; hoverBox.visible=false; snapMarks.forEach(m=>m.visible=false); Object.values(GHOSTS).forEach(g=>g.visible=false);
   Object.values(ITEMS).forEach(it=>it.label.hidden=true);
@@ -271,8 +289,8 @@ function launch(){
   GS.skipT=setTimeout(()=>{ if(GS.mode==='run') $('skip').hidden=false; },2500);
 }
 function setLive(v){ $('livev').textContent=Math.round(v); $('liveu').textContent='m'; trail(v); }
-const TRAIL_END=260;
-function trailInit(){ const t=$('trail'); t.innerHTML='<div class="tl"></div><div class="tf" id="tf"></div>'+LV.marks.map((m,i)=>`<div class="tm" style="left:${m/TRAIL_END*100}%">${medalSVG(i+1,22)}<small>${m} m</small></div>`).join('')+
+const TRAIL_END=Math.ceil(LV.marks[2]*1.18/10)*10;
+function trailInit(){ levelPicker(); const t=$('trail'); t.innerHTML='<div class="tl"></div><div class="tf" id="tf"></div>'+LV.marks.map((m,i)=>`<div class="tm" style="left:${m/TRAIL_END*100}%">${medalSVG(i+1,22)}<small>${m} m</small></div>`).join('')+
   '<div class="tb" id="tb" hidden><small>Best</small></div><div class="tp" id="tp"><i></i></div>'; trail(0); }
 function trail(v){ const f=clamp(v/TRAIL_END,0,1)*100; $('tf').style.width=f+'%'; $('tp').style.left=f+'%';
   let best=0; try{ best=+localStorage.getItem(SKEY3+'-best')||0; }catch(e){} const tb=$('tb'); tb.hidden=!best; tb.style.left=clamp(best/TRAIL_END,0,1)*100+'%'; }
@@ -309,10 +327,11 @@ function runStep(dt){
     if(u.k==='motor'){ if(flow&&!RM){ u.root.position.set((Math.random()-.5)*.02,(Math.random()-.5)*.02,0); if(Math.random()<dt*2.5){ const w=g.localToWorld(new THREE.Vector3(.3,.5,.5)); sparkle(w.x,w.y,w.z); } } else u.root.position.set(0,0,0); } });
   if(S.energy<=0&&S.energy0>0&&!GS.flat){ GS.flat=true; const b=GS.mparts.find(g=>g.userData.k==='battery');
     if(b){ const w=b.localToWorld(new THREE.Vector3(0,.5,0)); word('Flat!',w); sparkle(w.x,w.y,w.z); } blip(400,.5,'sawtooth',.05,80); }
-  if(sp>7&&!RM&&Math.random()<dt*(sp*.9)) speedLine(R.x-1.8-Math.random(),R.y-.6+Math.random()*1.8,-.8+Math.random()*1.8);
-  setLive(S.best.dist);
-  loops(false,flow&&!S.done,sp);
-  const m=medalFor(LV,S.best.dist);
+  rocketFX(S,R,dt);
+  if(sp>7&&!RM&&Math.random()<dt*(sp*.9)){ const ux=S.vx/sp, uy=S.vy/sp, b=-1.8-Math.random(), o=-.9+Math.random()*1.8; speedLine(R.x+ux*b-uy*o,R.y+uy*b+ux*o,-.8+Math.random()*1.8,Math.atan2(uy,ux)); }
+  setLive(scoreNow(S));
+  loops(S.burning&&!S.done,flow&&!S.done,sp);
+  const m=medalFor(LV,scoreNow(S));
   if(m>GS.got){ GS.got=m; callout(MNAME[m]+'!',fmt(LV.goal,LV.marks[m-1])); starBurst(R.x,R.y+1); blip(660+m*110,.2,'triangle',.14); buzz(15);
     $('hsub').textContent=m<3?'Next '+fmt(LV.goal,LV.marks[m]):'Gold!'; }
   if(S.done){ GS.endT+=dt; loops(false,false,0); $('skip').hidden=true; if(GS.endT>1.1) finish(); }
@@ -321,12 +340,17 @@ function stepLoose(dt){ GS.loose.forEach(L=>{ L.vy-=G*dt; L.x+=L.vx*dt; L.y+=L.v
   L.o.position.set(L.x,L.y,0); L.o.rotation.z=L.a; }); }
 
 function finish(){
-  const S=GS.S, v=S.best.dist, m=medalFor(LV,v); GS.mode='done';
+  const S=GS.S, v=scoreNow(S), m=medalFor(LV,v), wasOpen=LEVELS3D.map(isOpen); GS.mode='done';
   let best=0; try{ best=+localStorage.getItem(SKEY3+'-best')||0; if(v>best) localStorage.setItem(SKEY3+'-best',v); }catch(e){}
-  const why=!S.P.some(p=>!PARTS[p.k].fixed)?'Pip needs some parts.':S.n.motor&&!S.n.battery?'The motor needs a battery.':S.n.battery&&!S.n.motor?'A battery on its own won’t turn the wheels. Add a motor.':'';
+  let why=!S.P.some(p=>!PARTS[p.k].fixed)?'Pip needs some parts.':S.n.motor&&!S.n.battery?'The motor needs a battery.':S.n.battery&&!S.n.motor?'A battery on its own won’t turn the wheels. Add a motor.':
+    ALT&&!S.n.rockets?'Nothing pushes it up. Add a rocket.':ALT&&S.P.some(p=>isRocket(p.k)&&p.d!==1)&&!S.P.some(p=>isRocket(p.k)&&p.d===1)?'The rockets aren’t pointing up. Click one on the board to turn it.':
+    ALT&&scoreNow(S)<20&&S.n.rockets&&!S.n.fin?'It tumbled. Balance it over the rocket, or add fins to keep it straight.':'';
+  // a bronze here can open the next machine
+  const nowOpen=LEVELS3D.map((id,i)=>i===LEVELS3D.indexOf(LV.id)+1&&medalFor(LV,Math.max(v,bestOf(LV.id)))>=1);
+  const opened=LEVELS3D.find((id,i)=>!wasOpen[i]&&nowOpen[i]); if(opened&&!why) why='New machine open: '+levelById(opened).name+'. Pick it at the top.';
   // the result comes up as a test report on a clipboard; the old card is only a fallback if the clipboard hasn't loaded
   let run=1; try{ run=(+localStorage.getItem(SKEY3+'-runs')||0)+1; localStorage.setItem(SKEY3+'-runs',run); }catch(e){}
-  const D={level:LV.name, run, value:fmt(LV.goal,v), marks:LV.marks.map(mk=>fmt(LV.goal,mk)), medal:m, head:m===3?'Gold!':m===2?'Silver!':m===1?'Bronze!':'Not yet',
+  levelPicker(); const D={level:LV.name, label:GOALS[LV.goal].label.toUpperCase(), run, value:fmt(LV.goal,v), marks:LV.marks.map(mk=>fmt(LV.goal,mk)), medal:m, head:m===3?'Gold!':m===2?'Silver!':m===1?'Bronze!':'Not yet',
     why, newBest:v>best&&v>0, best:v>best?'':best?'Best so far: '+fmt(LV.goal,best)+'.':''};
   if(showReport(D,S)){ setLive(v); return; }
   const rows=LV.marks.map((mk,i)=>`<div class="row${m>=i+1?' me':''}"><span class="pos">${medalSVG(m>=i+1?i+1:0,22)}</span><span class="nm">${MNAME[i+1]}</span><span></span><b>${fmt(LV.goal,mk)}</b></div>`).join('');
@@ -357,7 +381,7 @@ $('c').addEventListener('pointerleave',()=>{ if(!DRAG) hoverAll({}); });
 // keys: number keys pick parts, R picks Remove, space launches
 addEventListener('keydown',e=>{ if(e.repeat) return;
   if(e.key==='Escape'&&DRAG){ cancelDrag(); return; }
-  if(GS.mode==='build'){ const i=+e.key-1;
+  if(GS.mode==='build'){ const i=e.key==='0'?9:+e.key-1;
     if(i>=0&&i<TOOLS.length) pickTool(TOOLS[i]);
     else if(e.key==='r'||e.key==='Backspace') pickTool('erase');
     else if(e.key===' '||e.key==='Enter'){ e.preventDefault(); launch(); } }
@@ -396,6 +420,12 @@ function animate(dt){
     GS.antV+=(-GS.ant*60-GS.antV*4)*dt; GS.ant+=GS.antV*dt;
     const a=RM?0:clamp(GS.ant*.12,-.5,.5)+(running?-clamp(S.vx*.006,0,.25):0); if(u.antP) u.antP.rotation.z=a;
   }
+  // turning parts on the board swing round to their new direction
+  for(const key in GS.bparts){ const u=GS.bparts[key].userData, c=GS.design[key]; if(!u.dirG||!c) continue;
+    const want=(c.d-1)*Math.PI/2; if(u.dirNow==null) u.dirNow=want;
+    if(u.turnAt!=null&&!RM){ const f=clamp((GS.t-u.turnAt)/.22,0,1), from=u.turnFrom, d=Math.atan2(Math.sin(want-from),Math.cos(want-from)), e=f<1?1-Math.pow(1-f,3)*(1-.0)+Math.sin(f*Math.PI)*.12:1;
+      u.dirNow=from+d*e; if(f>=1){ u.turnAt=null; u.dirNow=want; } } else u.dirNow=want;
+    u.dirG.rotation.z=u.dirNow; }
   if(GS.shadow&&GS.machine){ const sh=GS.shadow, M=GS.machine, h=Math.max(0,M.position.y-1);
     sh.visible=true; sh.position.set(M.position.x,.03,0); sh.scale.set(5.2/(1+h*.15),5.2/(1+h*.15),1); sh.material.uniforms.uA.value=1/(1+h*.3); }
   // on the board, a powered machine ticks over gently: the motor turns and the wheels it drives roll
@@ -414,12 +444,16 @@ function animate(dt){
   if(GS.mode==='build'||GS.mode==='load') want=fitBuildCam();
   else { const R=GS.R||{x:0,y:1}, sp=GS.spS, z=Math.min(10,sp*.25), lead=clamp(sp*.25,0,6);
     const th=Math.tan(cam.fov*Math.PI/360)*cam.aspect, dist=clamp((10+z*.6)/th,14,90);
-    const T=new THREE.Vector3(R.x+lead+dist*.12,Math.max(R.y,1)+.4,0);
-    want={pos:T.clone().add(new THREE.Vector3(-dist*.3,1.5+dist*.16,dist)), look:T.clone().add(new THREE.Vector3(0,dist*.07,0))}; }
+    if(ALT){ const up=clamp(S?S.vy*.12:0,-3,4), T=new THREE.Vector3(R.x+dist*.14,Math.max(R.y,1)+up+1,0); // the machine sits just below the middle, a little left, the tower beside it
+      want={pos:T.clone().add(new THREE.Vector3(-dist*.22,-dist*.03,dist)), look:T}; }
+    else { const T=new THREE.Vector3(R.x+lead+dist*.12,Math.max(R.y,1)+.4,0);
+    want={pos:T.clone().add(new THREE.Vector3(-dist*.3,1.5+dist*.16,dist)), look:T.clone().add(new THREE.Vector3(0,dist*.07,0))}; } }
   const k=RM||GS.mode==='load'?1:1-Math.pow(GS.mode==='build'?.004:.02,dt);
   camPos.lerp(want.pos,k); camLook.lerp(want.look,k); cam.position.copy(camPos); cam.lookAt(camLook);
   // once running, the camera keeps exact pace along the road (no lag to catch up, so no judder); only height and zoom ease
   if(GS.mode!=='build'&&GS.mode!=='load'&&GS.pre<=0&&!RM){ GS.lock=Math.min(1,(GS.lock||0)+dt*.8); const f=ease(GS.lock);
-    camPos.x+=(want.pos.x-camPos.x)*f; camLook.x+=(want.look.x-camLook.x)*f; cam.position.copy(camPos); cam.lookAt(camLook); } else GS.lock=0;
+    if(ALT){ camPos.y+=(want.pos.y-camPos.y)*f; camLook.y+=(want.look.y-camLook.y)*f; } // keeps exact pace up the tower
+    else { camPos.x+=(want.pos.x-camPos.x)*f; camLook.x+=(want.look.x-camLook.x)*f; }
+    cam.position.copy(camPos); cam.lookAt(camLook); } else GS.lock=0;
   if(GS.com){ const bu=bench.userData; bu.px.position.x+=(GS.com[0]-bu.px.position.x)*Math.min(1,dt*12); bu.py.position.y+=(BENCH_Y+GS.com[1]-bu.py.position.y)*Math.min(1,dt*12); }
 }

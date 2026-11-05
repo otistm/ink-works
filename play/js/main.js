@@ -7,7 +7,7 @@ function resize(){ inkSize(innerWidth,innerHeight,PR_NOW); cam.aspect=innerWidth
 addEventListener('resize',resize); resize();
 setLook(+(new URLSearchParams(location.search).get('look')||0)); // try the looks: ?look=0 … ?look=7
 buildBench(); scene.remove(bench); benchPivot.position.set(0,0,-1.25); bench.position.z=1.25; benchPivot.add(bench);
-buildWorld(LV);
+LEVELS3DIR=LV.goal; buildWorld(LV);
 if(document.fonts) document.fonts.ready.then(()=>{ redrawSigns(); paintFloorNumbers(); }); else paintFloorNumbers();
 $('hn').textContent=LV.name; $('hsub').textContent=LV.blurb;
 trailInit();
@@ -23,6 +23,6 @@ function frame(now){ const raw=(now-last)/1000, dt=Math.min(.05,raw); last=now;
 loadParts(()=>{
   loadClipboard();
   buildScenery(); buildItems(); GS.design=loadDesign(); $('top').hidden=false; $('dock').hidden=false;
-  refreshBuild(); GS.powered=GS.L.powered.size>0&&GS.L.driven.size>0; GS.mode='build'; showHint('Drag a part onto the board. Wheels go on the bottom.');
+  refreshBuild(); GS.powered=GS.L.powered.size>0&&GS.L.driven.size>0; GS.mode='build'; showHint('Drag a part onto the board. '+LV.hint.replace(/^Tap a part, then tap the grid\. ?/,''));
   requestAnimationFrame(t=>{ last=t; frame(t); });
 });
