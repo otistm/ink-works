@@ -4,12 +4,17 @@
 const scene=new THREE.Scene();
 const BENCH_Y=7.0;           // height of Pip's cell on the bench (high enough for the parts table in front)
 const PART3D={};             // templates loaded from models/parts.glb
+const ENV3D={};              // scenery modelled in Blender: models/env.glb (outdoors) and models/shop.glb (the workshop)
+// where the game takes place: a giant workshop with an endless grid floor (the default), or the outdoors (?world=outdoors)
+const WORLD=new URLSearchParams(location.search).get('world')==='outdoors'?'outdoors':'workshop';
 
 function loadParts(done){
-  new THREE.GLTFLoader().load('models/parts.glb?v='+VERSION, g=>{
+  const L=new THREE.GLTFLoader(), fail=e=>{ console.error(e); $('hintT').textContent='Couldn’t load the models.'; $('hint').hidden=false; };
+  L.load('models/parts.glb?v='+VERSION, g=>{
     ['core','frame','wheel','motor','battery'].forEach(k=>{ const o=g.scene.getObjectByName('part_'+k); o.parent.remove(o); o.position.set(0,0,0); PART3D[k]=o; });
-    done();
-  }, undefined, e=>{ console.error(e); $('hintT').textContent='Couldn’t load the parts.'; $('hint').hidden=false; });
+    const file=WORLD==='workshop'?'shop':'env';
+    L.load('models/'+file+'.glb?v='+VERSION, e=>{ e.scene.children.slice().forEach(o=>{ if(/^(env|shop)_/.test(o.name)){ e.scene.remove(o); o.position.set(0,0,0); ENV3D[o.name.replace(/^env_/,'')]=o; } }); done(); }, undefined, fail);
+  }, undefined, fail);
 }
 // a fresh copy of a part with its own ink, and handles for the bits that move
 function makePart(k){
@@ -76,6 +81,19 @@ function buildTable(n){
 /* ---------- the ground, the road and the scenery ---------- */
 function buildWorld(lv){
   const P=PAPER;
+  if(WORLD==='workshop') buildFloor(lv); else buildOutdoors(lv);
+  // the medal lines: a stripe across the road and a flag (gold is solid ink with a star, silver hatched, bronze outlined)
+  lv.marks.forEach((m,i)=>{ const tier=i+1;
+    scene.add(at(box(.35,.05,WORLD==='workshop'?3.8:3.4,tier===3?INKM():inkMat(tier===2?2:3)),m,.01,0));
+    const pole=at(box(.12,4.2,.12,P()),m,2.1,-2.9); scene.add(pole);
+    const fg=new THREE.Shape(); fg.moveTo(0,0); fg.lineTo(2.2,-.65); fg.lineTo(0,-1.3); fg.lineTo(0,0);
+    const flag=new THREE.Mesh(new THREE.ExtrudeBufferGeometry(fg,{depth:.06,bevelEnabled:false}), tier===3?INKM():tier===2?inkMat(2):inkMat(3));
+    at(flag,m+.06,4.15,-2.93); scene.add(flag); flag.userData.flap=true; FLAGS.push(flag);
+    const s=sign(['Bronze','Silver','Gold'][i]+' '+m+' m',2.4,.7); at(s,m,.95,-2.8); scene.add(s);
+  });
+}
+function buildOutdoors(lv){
+  const P=PAPER;
   // ground: one big sheet of paper, never hatched
   const ground=new THREE.Mesh(new THREE.PlaneBufferGeometry(2400,400),inkMat(3)); ground.rotation.x=-Math.PI/2; at(ground,700,0,-150); scene.add(ground);
   // the road: a raised strip, with dashes along its front edge
@@ -89,37 +107,101 @@ function buildWorld(lv){
     if(x%20===0){ const s=sign(x+' m',1.5,.7); at(s,x,1.35,-2.03); scene.add(s); }
   }
   mergeStatic(posts,P());
-  // the medal lines: a stripe across the road and a flag (gold is solid ink with a star, silver hatched, bronze outlined)
-  lv.marks.forEach((m,i)=>{ const tier=i+1;
-    scene.add(at(box(.35,.05,3.4,tier===3?INKM():inkMat(tier===2?2:3)),m,.01,0));
-    const pole=at(box(.12,4.2,.12,P()),m,2.1,-2.9); scene.add(pole);
-    const fg=new THREE.Shape(); fg.moveTo(0,0); fg.lineTo(2.2,-.65); fg.lineTo(0,-1.3); fg.lineTo(0,0);
-    const flag=new THREE.Mesh(new THREE.ExtrudeBufferGeometry(fg,{depth:.06,bevelEnabled:false}), tier===3?INKM():tier===2?inkMat(2):inkMat(3));
-    at(flag,m+.06,4.15,-2.93); scene.add(flag); flag.userData.flap=true; FLAGS.push(flag);
-    const s=sign(['Bronze','Silver','Gold'][i]+' '+m+' m',2.4,.7); at(s,m,.95,-2.8); scene.add(s);
-  });
-  // rolling hills, far off, and trees between
-  const r=rnd(7), hillG=new THREE.SphereBufferGeometry(1,28,14);
-  const hills=[]; for(let x=-80;x<700;x+=r()*40+35){ const s=18+r()*22; hills.push(piece(hillG,x,-2,-70-r()*50,s*1.6,s*.45+4,s)); }
-  mergeStatic(hills,inkMat(3));
-  const trunkG=new THREE.CylinderBufferGeometry(.12,.16,1.4,8), crownG=new THREE.ConeBufferGeometry(1,2.6,9), bushG=new THREE.IcosahedronBufferGeometry(1,1);
-  const trees=[];
-  for(let x=-40;x<500;x+=r()*14+6){ const z=-7-r()*22, s=.8+r()*.9;
-    if(r()<.6){ trees.push(piece(trunkG,x,.7*s,z,s), piece(crownG,x,2.4*s,z,s)); }
-    else trees.push(piece(bushG,x,.3*s,z,1.3*s,.8*s,s)); }
-  mergeStatic(trees,P());
-  // grass tufts in front of the road, so you can feel the speed
-  const tuftG=new THREE.ConeBufferGeometry(.05,.35,4), tufts=[];
-  for(let x=-20;x<560;x+=r()*2.2+.6){ const z=4.2+r()*5, s=.7+r()*.7;
-    for(let j=0;j<3;j++) tufts.push(piece(tuftG,x+(j-1)*.09*s,.15*s,z,s,s,s,(j-1)*.45)); }
-  mergeStatic(tufts,INKM());
-  // clouds: clumps of paper balls, drifting slowly
-  const cG=new THREE.IcosahedronBufferGeometry(1,2);
-  for(let i=0;i<14;i++){ const c=new THREE.Group(), n=3+Math.floor(r()*3);
-    for(let j=0;j<n;j++){ const b=at(new THREE.Mesh(cG,inkMat(3)),j*1.6-n*.8,r()*.6,r()*.5); b.scale.setScalar(1.1+r()*.9); c.add(b); }
-    at(c,-40+i*40+r()*20,14+r()*12,-45-r()*25); c.scale.setScalar(1.4+r()); c.userData.drift=.3+r()*.4; scene.add(c); CLOUDS.push(c); }
+}
+
+/* ---------- the workshop floor: an endless grid, like a testing room ----------
+   One light line every metre, all the same, a taped test lane down the middle, all fading to white in the distance.
+   It isn't outlined (it's on the no-outline layer), so there is no horizon line: the floor just melts into the paper. */
+const FLOOR_FRAG=`
+varying vec3 vW;
+float grid(vec2 p,float step,float px){ vec2 c=p/step, fw=fwidth(c), d=abs(fract(c-.5)-.5)/max(fw,1e-4); return 1.-clamp(min(d.x,d.y)-px*.5+.5,0.,1.); }
+void main(){
+  vec2 p=vW.xz; float fw=max(fwidth(p.x),fwidth(p.y)); float col=1.;
+  col=mix(col,.86,grid(p,1.,1.)*(1.-smoothstep(.22,.6,fw)));     // one light line every metre, all alike; it melts away where the squares get tiny
+  // the test lane: plain floor between two strips of hazard tape
+  float az=abs(p.y);
+  if(az<1.85) col=max(col,.94);
+  if(az>1.85&&az<2.25){ float st=step(.5,fract((p.x-p.y*sign(p.y))*.9)); col=mix(1.,0.,st); if(az<1.9||az>2.2) col=0.; }
+  // fade everything into the paper far away
+  float dist=length(vW-cameraPosition); col=mix(col,1.,smoothstep(90.,260.,dist));
+  gl_FragColor=vec4(vec3(col),1.);
+}`;
+function buildFloor(lv){
+  const m=new THREE.ShaderMaterial({vertexShader:'varying vec3 vW; void main(){ vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }',
+    fragmentShader:FLOOR_FRAG, extensions:{derivatives:true}});
+  const floor=new THREE.Mesh(new THREE.PlaneBufferGeometry(5000,3000),m); floor.rotation.x=-Math.PI/2; at(floor,1000,0,-1000); floor.layers.set(NOEDGE); floor.renderOrder=-1; scene.add(floor);
+  FLOORNUMS.lv=lv;
+}
+// big numbers painted on the floor in front of the lane, every 10 m (drawn once the font has loaded)
+const FLOORNUMS={lv:null, done:false};
+function paintFloorNumbers(){
+  if(WORLD!=='workshop'||FLOORNUMS.done||!FLOORNUMS.lv) return; FLOORNUMS.done=true;
+  for(let x=10;x<=400;x+=10){
+    const c=document.createElement('canvas'); c.width=512; c.height=256; const g=c.getContext('2d');
+    g.fillStyle='#000'; g.font=`italic 900 ${x%50?150:190}px Fraunces, Georgia, serif`; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(x+(x%50?'':' m'),256,138);
+    const tex=new THREE.CanvasTexture(c); tex.anisotropy=INKR.renderer.capabilities.getMaxAnisotropy();
+    const d=new THREE.Mesh(new THREE.PlaneBufferGeometry(2.4,1.2),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3}));
+    d.rotation.x=-Math.PI/2; at(d,x,.012,3.2); d.layers.set(NOEDGE); d.renderOrder=1; scene.add(d);
+    // and a short tick across the tape, so the number has a line to belong to
+  }
+  const ticks=[]; const tg=new THREE.BoxBufferGeometry(.08,.02,.9); for(let x=10;x<=400;x+=10) ticks.push(piece(tg,x,.01,2.45));
+  const t=mergeStatic(ticks,INKM()); t.layers.set(NOEDGE);
 }
 const FLAGS=[], CLOUDS=[], SIGNS=[];
+
+/* ---------- scenery from Blender ----------
+   Each piece is placed many times and baked into a few big meshes (one per ink), so the screen draws them in one go. */
+const inkFor=name=>name==='ink'?INKM():name==='snow'?inkMat(3):PAPER();
+function scatter(name,places,ink){ // ink: use this ink for every piece instead of the model's own
+  const T=ENV3D[name], buckets={}; if(!T) return;
+  places.forEach(p=>{ const o=T.clone(true); o.position.set(p.x,p.y||0,p.z); o.rotation.y=p.ry||0; const s=p.s||1; o.scale.set(s*(p.sx||1),s*(p.sy||1),s*(p.sz||1)); o.updateMatrixWorld(true);
+    o.traverse(m=>{ if(m.isMesh){ const k=ink||m.material.name||'paper'; (buckets[k]=buckets[k]||[]).push(m); } }); });
+  for(const k in buckets) mergeStatic(buckets[k],inkFor(k));
+}
+// the workshop: giant tools dropped on the floor behind the lane, so Pip looks tiny, and test cones along the tape
+function buildShop(){
+  const r=rnd(11), Rr=(a,b)=>a+r()*(b-a);
+  const cones=[]; for(let x=-20;x<=420;x+=5) cones.push({x, z:-2.75, ry:Rr(0,6)});
+  for(let x=-15;x<=420;x+=20) cones.push({x, z:2.75, ry:Rr(0,6)});
+  scatter('shop_cone',cones);
+  const kinds=['shop_nut','shop_bolt','shop_pencil','shop_ruler','shop_spanner','shop_block','shop_washer'], spots={};
+  kinds.forEach(k=>spots[k]=[]);
+  // a few near the start so the workshop reads straight away, then more along the course
+  spots.shop_ruler.push({x:-18, z:-16, s:1.6, ry:.15}); spots.shop_pencil.push({x:16, z:-26, s:1.8, ry:-.35});
+  spots.shop_nut.push({x:-14, z:-32, s:3.4, ry:.3}); spots.shop_block.push({x:30, z:-34, s:2.4, ry:.4},{x:32, y:4.8, z:-34.5, s:2.2, ry:.1});
+  for(let x=35;x<460;x+=Rr(16,32)){ const k=kinds[Math.floor(r()*kinds.length)], far=r()<.5;
+    const s=(k==='shop_cone'?1:k==='shop_ruler'||k==='shop_pencil'||k==='shop_spanner'?Rr(1.4,2.4):Rr(2.2,4))*(far?1.5:1);
+    spots[k].push({x, z:far?Rr(-30,-48):Rr(-9,-20), s, ry:Rr(0,6)}); }
+  for(const k in spots) scatter(k,spots[k]);
+}
+// a single piece with its own inks (for things that move, like clouds)
+function single(name){ const o=ENV3D[name].clone(true); o.traverse(m=>{ if(m.isMesh) m.material=inkFor(m.material.name); }); return o; }
+function buildScenery(){
+  if(WORLD==='workshop') return buildShop();
+  const r=rnd(7), Rr=(a,b)=>a+r()*(b-a);
+  // mountains on the far horizon, with snowy tops
+  const mtn=[]; for(let x=-160;x<780;x+=Rr(110,170)) mtn.push({x, y:-3, z:Rr(-300,-360), s:Rr(2.6,3.5), sy:Rr(.85,1.15), ry:Rr(-.25,.25)});
+  scatter('mountains_a',mtn.filter((_,i)=>i%2===0)); scatter('mountains_b',mtn.filter((_,i)=>i%2===1));
+  // rolling hills in front of them
+  const hills=[]; for(let x=-90;x<720;x+=Rr(30,55)) hills.push({x, y:-1, z:Rr(-75,-130), s:Rr(14,26), sx:Rr(1.4,2), sy:Rr(.8,1.1), ry:Rr(0,6)});
+  scatter('hill',hills);
+  // a wood of mixed trees behind the road, thicker further back
+  const kinds=['pine_tall','pine_short','tree_round'], trees={pine_tall:[],pine_short:[],tree_round:[]};
+  for(let x=-40;x<560;x+=Rr(3,8)){ const k=kinds[Math.floor(r()*3)], z=Rr(-8,-34); trees[k].push({x, z, s:Rr(.8,1.5)*(z<-20?1.25:1), ry:Rr(0,6)}); }
+  for(const k in trees) scatter(k,trees[k]);
+  // bushes and rocks near the road, a few in front of it
+  const bushes=[], rocks=[], rocks2=[];
+  for(let x=-30;x<560;x+=Rr(5,13)){ bushes.push({x, z:r()<.75?Rr(-4,-9):Rr(4.5,9), s:Rr(.7,1.4), ry:Rr(0,6)}); }
+  for(let x=-30;x<560;x+=Rr(9,20)){ (r()<.5?rocks:rocks2).push({x, y:-.1, z:r()<.6?Rr(-4,-12):Rr(5,10), s:Rr(.5,1.3), ry:Rr(0,6)}); }
+  scatter('bush',bushes); scatter('rock_a',rocks); scatter('rock_b',rocks2);
+  // grass tufts all along, so you can feel the speed
+  const grass=[]; for(let x=-25;x<560;x+=Rr(.6,2.2)) grass.push({x, z:r()<.65?Rr(4.2,10):Rr(-3,-7), s:Rr(.8,1.6), ry:Rr(0,6)});
+  scatter('grass',grass,'paper'); // paper blades with ink outlines: lighter than solid ink
+  // clouds drifting high up, each on its own so it can move
+  for(let i=0;i<16;i++){ const c=single(['cloud_a','cloud_b','cloud_c'][i%3]); at(c,-60+i*45+Rr(0,25),Rr(24,36),Rr(-70,-110)); c.scale.setScalar(Rr(2.4,4)); c.rotation.y=Rr(-.4,.4);
+    c.userData.drift=Rr(.3,.7); scene.add(c); CLOUDS.push(c); }
+}
 // redraw sign lettering once the font has arrived, so it's never in a fallback font
 function redrawSigns(){ SIGNS.forEach(S=>{ const {c,g,s}=S; g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.fillStyle='#000';
   g.font=`italic 900 ${s*.6}px Fraunces, Georgia, serif`; g.textAlign='center'; g.textBaseline='middle'; g.fillText(S.text,c.width/2,s*.56); g.lineWidth=s*.05; g.strokeRect(s*.04,s*.04,c.width-s*.08,s-s*.08); S.tex.needsUpdate=true; }); }

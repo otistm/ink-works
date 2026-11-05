@@ -5,9 +5,10 @@ inkInit($('c'));
 let PR_MAX=Math.min(2,Math.max(1.5,devicePixelRatio||1)), PR_NOW=PR_MAX;
 function resize(){ inkSize(innerWidth,innerHeight,PR_NOW); cam.aspect=innerWidth/innerHeight; cam.updateProjectionMatrix(); }
 addEventListener('resize',resize); resize();
+setLook(+(new URLSearchParams(location.search).get('look')||0)); // try the looks: ?look=0 … ?look=7
 buildBench(); scene.remove(bench); benchPivot.position.set(0,0,-1.25); bench.position.z=1.25; benchPivot.add(bench);
 buildWorld(LV);
-if(document.fonts) document.fonts.ready.then(redrawSigns);
+if(document.fonts) document.fonts.ready.then(()=>{ redrawSigns(); paintFloorNumbers(); }); else paintFloorNumbers();
 $('hn').textContent=LV.name; $('hsub').textContent=LV.blurb;
 trailInit();
 let last=performance.now(), slow=0, fast=0;
@@ -20,7 +21,7 @@ function frame(now){ const raw=(now-last)/1000, dt=Math.min(.05,raw); last=now;
   if(GS.mode==='run') runStep(dt);
   animate(dt); inkRender(scene,cam,GS.t); requestAnimationFrame(frame); }
 loadParts(()=>{
-  buildItems(); GS.design=loadDesign(); $('top').hidden=false; $('dock').hidden=false;
+  buildScenery(); buildItems(); GS.design=loadDesign(); $('top').hidden=false; $('dock').hidden=false;
   refreshBuild(); GS.powered=GS.L.powered.size>0&&GS.L.driven.size>0; GS.mode='build'; showHint('Drag a part onto the board. Wheels go on the bottom.');
   requestAnimationFrame(t=>{ last=t; frame(t); });
 });

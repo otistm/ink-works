@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.10.1
+- 3D test: the workshop floor grid is lighter and even: one light grey line every metre, all the same colour and strength, with no darker 5 m or 10 m lines.
+
+## 0.10.0
+- 3D test: a new place to play. The game now takes place in a gigantic workshop, like a testing room: an endless grid floor (fine lines every metre, bolder every 5 and 10 m) that fades into white paper, with no horizon line. The machine runs down a test lane edged with hazard tape and lined with cones, with big distance numbers painted on the floor every 10 m. Giant tools modelled in Blender lie about the floor so Pip looks tiny: a hex nut, a bolt, a pencil, a ruler, a spanner, a washer and stacked wooden blocks. The outdoor world is still there with ?world=outdoors.
+
+## 0.9.0
+- 3D test:
+  - Clean lines. Studio cel, the default look, now draws crisp, even ink lines with nothing hand-drawn about them: no wobble, no shimmer, no pen wobble in their weight. The earlier lines are kept to compare: ?look=6 (wobbly) and ?look=7 (steady pen lines).
+  - Scenery modelled in Blender: snow-capped mountain ranges on the horizon, rolling hills, tall and short pines, round trees, bushes, rocks, grass tufts and cartoon clouds that drift. They are scattered along the whole course and drawn in a few big batches, so runs stay smooth. Grass is paper with an ink outline, so it stays light.
+
+## 0.8.1
+- 3D test: Studio cel, the default look, now has steady lines: no wobble and no shimmer. The ink lines keep their bold outsides and fine insides. The old wobbly version is still there as ?look=6 to compare.
+
+## 0.8.0
+- 3D test: six ways to draw it. Add ?look=0 to ?look=5 to the page address to switch: 0 studio cel (the look so far), 1 two-tone comic, 2 halftone print, 3 clean line, 4 soft graphite, 5 inked terminator. Each changes the shading, the line weight and how much the lines wobble. All stay black, white and grey.
+
 ## 0.7.1
 - 3D test: Pip's face is clear again. The raised frame round the face and its four corner screws are gone; Pip keeps the eyes, smile, antenna and ear knobs.
 
