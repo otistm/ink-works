@@ -13,6 +13,7 @@ function loadParts(done){
   const L=new THREE.GLTFLoader(), fail=e=>{ console.error(e); $('hintT').textContent='Couldn’t load the models.'; $('hint').hidden=false; };
   L.load('models/parts.glb?v='+VERSION, g=>{
     ['core','frame','wheel','motor','battery','rocket','fuel','nose','booster','bigrocket','slowburn','bigtank','fin'].forEach(k=>{ const o=g.scene.getObjectByName('part_'+k); o.parent.remove(o); o.position.set(0,0,0); PART3D[k]=o; });
+    L.load('models/bench.glb?v='+VERSION, b=>{ const m=b.scene.getObjectByName('bench_root'); m.parent.remove(m); placeBench(m); }, undefined, fail);
     const file=WORLD==='workshop'?'shop':'env';
     L.load('models/'+file+'.glb?v='+VERSION, e=>{ e.scene.children.slice().forEach(o=>{ if(/^(env|shop)_/.test(o.name)){ e.scene.remove(o); o.position.set(0,0,0); ENV3D[o.name.replace(/^env_/,'')]=o; } }); done(); }, undefined, fail);
   }, undefined, fail);
@@ -53,24 +54,31 @@ function rnd(s){ return ()=>{ s=(s*16807)%2147483647; return (s-1)/2147483646; }
 /* ---------- the bench: a pegboard standing at the start line ---------- */
 const bench=new THREE.Group(); scene.add(bench);
 function buildBench(){
-  const P=PAPER(), I=INKM();
-  // the board, with the grid inked on its face (a drawing, so the lines stay crisp)
-  const c=document.createElement('canvas'), S=1024; c.width=c.height=S; const g=c.getContext('2d');
-  g.fillStyle='#fff'; g.fillRect(0,0,S,S); g.strokeStyle='#000'; g.lineCap='round';
-  const u=S/7.7, o=(7.7-7)/2*u;
-  for(let i=0;i<=7;i++){ g.lineWidth=i===0||i===7?5:3; const v=o+i*u; g.beginPath(); g.moveTo(v,o); g.lineTo(v,S-o); g.moveTo(o,v); g.lineTo(S-o,v); g.stroke(); }
-  g.fillStyle='#000'; for(let x=0;x<7;x++) for(let y=0;y<7;y++){ g.beginPath(); g.arc(o+(x+.5)*u,o+(y+.5)*u,3,0,TAU); g.fill(); } // peg holes
-  const tex=new THREE.CanvasTexture(c); tex.anisotropy=8;
-  const board=at(new THREE.Mesh(new THREE.BoxBufferGeometry(7.7,7.7,.3),[P,P,P,P,new THREE.MeshBasicMaterial({map:tex}),P]),0,BENCH_Y,-1.05); bench.add(board);
-  // two legs and feet
-  [-3.2,3.2].forEach(x=>{ bench.add(at(box(.3,BENCH_Y-3.85+.2,.3,P),x,(BENCH_Y-3.85)/2,-1.05)); bench.add(at(box(.5,.18,1.6,P),x,.09,-1.05)); });
-  // the balance pointers: under the bench and beside it
+  // the board itself is a model (models/bench.glb) put in place once it has loaded: see placeBench
+  // the balance pointers: under the board and beside it, just outside the frame
   const cone=new THREE.ConeBufferGeometry(.22,.4,3);
-  bench.userData.px=add(at(new THREE.Mesh(cone,INKM()),0,BENCH_Y-3.95,-.6),bench);
-  bench.userData.py=add(at(new THREE.Mesh(cone,INKM()),3.95,BENCH_Y,-.6),bench);
+  bench.userData.px=add(at(new THREE.Mesh(cone,INKM()),0,BENCH_Y-4.5,-.6),bench);
+  bench.userData.py=add(at(new THREE.Mesh(cone,INKM()),4.5,BENCH_Y,-.6),bench);
   bench.userData.py.rotation.z=Math.PI/2; // the one under points up, this one points left at the board
 }
-
+/* The board is drawn without the ink-outline step (which works a whole pixel at a time and stair-steps on long straight edges).
+   Instead each piece gets a solid ink shell just behind it, a little bigger than the piece: the shell's rim is the outline,
+   and because it's real geometry the graphics card smooths its edges. */
+function inkShell(mesh,t){
+  const g=mesh.geometry, pos=g.attributes.position, nrm=g.attributes.normal, key=i=>[pos.getX(i),pos.getY(i),pos.getZ(i)].map(v=>Math.round(v*1e4)).join(',');
+  const sum={}; for(let i=0;i<pos.count;i++){ const k=key(i), n=sum[k]||(sum[k]=new THREE.Vector3()); n.x+=nrm.getX(i); n.y+=nrm.getY(i); n.z+=nrm.getZ(i); }
+  const h=g.clone(), hp=h.attributes.position;
+  for(let i=0;i<pos.count;i++){ const n=sum[key(i)].clone().normalize(); hp.setXYZ(i,pos.getX(i)+n.x*t,pos.getY(i)+n.y*t,pos.getZ(i)+n.z*t); }
+  const shell=new THREE.Mesh(h,new THREE.MeshBasicMaterial({color:0x000000,side:THREE.BackSide}));
+  shell.position.copy(mesh.position); shell.quaternion.copy(mesh.quaternion); shell.scale.copy(mesh.scale); shell.layers.set(NOEDGE); return shell; }
+function placeBench(model){
+  model.position.set(0,BENCH_Y,-1.05); bench.add(model);
+  const shells=[]; model.traverse(o=>{ if(!o.isMesh) return;
+    o.material=inkFor(o.material.name); o.material.userData.nm=shellNM(); // hides what's behind it from the outline step; its shell outlines it
+    // the big paper pieces get an ink shell; the small ink details (grid, holes, plates) are already ink
+    if(/panel|frame|posts|feet|bolts/.test(o.name)) shells.push([o.parent,inkShell(o,/bolts/.test(o.name)?.012:.03)]); });
+  shells.forEach(([p,s])=>p.add(s));
+}
 /* ---------- the parts table: a workbench under the board where the parts sit ---------- */
 const TABLE={y:1.75, z:2.6, x0:-3.6, gap:1.8};
 const table=new THREE.Group(); scene.add(table);

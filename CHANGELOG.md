@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.15.0
+- A new build board, modelled in Blender: a pegboard panel with raised ink grid strips and a peg hole in every square, a chunky beveled timber frame with ink corner plates and bolts, a name plate, and an easel stand with posts, feet, a cross brace and clamps.
+- Its edges are smooth. The board is outlined by a solid ink shell just behind each piece instead of the pixel-by-pixel outline step, so long straight edges no longer stair-step, and nothing is blurred. Solid shapes everywhere now get the graphics card's own edge smoothing too.
+- The balance pointers sit just outside the new frame.
+
 ## 0.14.1
 - The build board always starts empty, with just Pip, when you open the game or switch machine. "Change the build" after a run still brings back the machine you just flew.
 
