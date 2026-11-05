@@ -258,7 +258,7 @@ function animateDrag(dt){
 // frame the board and the parts table in whatever space the header and the buttons leave
 function fitBuildCam(){
   const H=INKR.H, W=INKR.W, top=Math.max($('top').getBoundingClientRect().bottom,$('trail').getBoundingClientRect().bottom)+6, bot=$('dock').hidden?H-10:$('dock').getBoundingClientRect().top-44;
-  const pts=[[-4,BENCH_Y+3.95,-1],[4.2,BENCH_Y+3.95,-1],[-TABLE.gap*TOOLS.length/2-.3,TABLE.y-.4,TABLE.z+1],[TABLE.gap*TOOLS.length/2+.3,TABLE.y-.4,TABLE.z+1]].map(a=>new THREE.Vector3(...a));
+  const pts=[[-4.3,BENCH_Y+4.15,-1],[4.75,BENCH_Y+4.15,-1],[-TABLE.gap*TOOLS.length/2-.3,TABLE.y-.4,TABLE.z+1],[TABLE.gap*TOOLS.length/2+.3,TABLE.y-.4,TABLE.z+1]].map(a=>new THREE.Vector3(...a));
   const C=cam.clone(); let look=new THREE.Vector3(0,(BENCH_Y+TABLE.y)/2+1,0), dist=26;
   const ty0=1-2*top/H, ty1=1-2*bot/H, tx=.94; // the usable box, in screen units (-1..1)
   for(let i=0;i<4;i++){ C.position.set(look.x+.6,look.y+2.2,dist); C.lookAt(look); C.updateMatrixWorld(); C.updateProjectionMatrix();

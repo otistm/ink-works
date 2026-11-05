@@ -1,3 +1,3 @@
 /* Ink Works: the version number. */
 "use strict";
-const VERSION='0.14.1';
+const VERSION='0.15.0';

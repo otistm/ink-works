@@ -69,9 +69,9 @@ void main(){
 }`;
 // surface direction and depth, for finding outlines
 const NRM_VERT=`varying vec3 vN; void main(){ vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`;
-const NRM_FRAG=`uniform float uFade; uniform float uPR; varying vec3 vN;
+const NRM_FRAG=`uniform float uFade; uniform float uPR; uniform float uShell; varying vec3 vN;
 void main(){ if(uFade>0.){ vec2 q=floor(gl_FragCoord.xy/(2.*uPR)); if(mod(q.x+q.y,2.)<1.) discard; }
-  vec3 n=normalize(vN); if(!gl_FrontFacing) n=-n; gl_FragColor=vec4(n*.5+.5,1.); }`;
+  vec3 n=normalize(vN); if(!gl_FrontFacing) n=-n; gl_FragColor=vec4(n*.5+.5,1.-uShell); }`;
 // the outline pass: ink where depth jumps or the surface turns sharply
 const EDGE_FRAG=`
 uniform sampler2D tN; uniform sampler2D tD; uniform vec2 uTexel; uniform float uPR; uniform float uBoil; uniform float uNear; uniform float uFar; uniform float uW; uniform float uWob; uniform float uPen; uniform float uInk; uniform float uCrease;
@@ -81,6 +81,10 @@ float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
   return mix(mix(h21(i),h21(i+vec2(1,0)),f.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x), f.y); }
 float iz(vec2 uv){ float z=texture2D(tD,uv).r*2.-1.; float d=2.*uNear*uFar/(uFar+uNear-z*(uFar-uNear)); return 1./d; }
 vec3 nn(vec2 uv){ return texture2D(tN,uv).xyz*2.-1.; }
+bool shelled(vec2 uv){ return texture2D(tN,uv).a<.5; } // a piece that draws its own smooth outline (the board)
+// a neighbour's depth and direction, except where the board is in front of this spot: that counts as no jump (its shell draws that edge)
+float zN(vec2 uv,vec2 o,float c){ float z=iz(uv+o); return shelled(uv+o)&&z>c?c:z; }
+vec3 nN(vec2 uv,vec2 o,float c){ return shelled(uv+o)&&iz(uv+o)>c?nn(uv):nn(uv+o); }
 void main(){
   vec2 px=vUv/uTexel/uPR;
   vec2 j=(vec2(vnoise(px*.045+uBoil*3.1), vnoise(px*.045-uBoil*2.7+17.))-.5)*uTexel*uPR*uWob; // the wobble
@@ -89,17 +93,18 @@ void main(){
   float pen=1.-uPen*.5+uPen*vnoise(px*.02+uBoil);
   float r=(uW*uPR*.5+.25)*pen, r2=max(.6,uW*uPR*.26)*pen;
   vec2 dx=vec2(uTexel.x*r,0.), dy=vec2(0.,uTexel.y*r), ex=vec2(uTexel.x*r2,0.), ey=vec2(0.,uTexel.y*r2);
-  float c=iz(uv), l=iz(uv-dx), rr=iz(uv+dx), u=iz(uv+dy), d=iz(uv-dy);
+  if(shelled(uv)){ gl_FragColor=vec4(0.); return; } // no outline step on the board itself: its ink shell outlines it
+  float c=iz(uv), l=zN(uv,-dx,c), rr=zN(uv,dx,c), u=zN(uv,dy,c), d=zN(uv,-dy,c);
   float de=max(abs(l+rr-2.*c), abs(u+d-2.*c))/max(c,1e-4);
-  float c2=iz(uv), de2=max(abs(iz(uv-ex)+iz(uv+ex)-2.*c2), abs(iz(uv+ey)+iz(uv-ey)-2.*c2))/max(c2,1e-4);
-  float ne=max(max(1.-dot(nn(uv-ex),nn(uv+ex)), 1.-dot(nn(uv-ey),nn(uv+ey))), 0.);
+  float c2=c, de2=max(abs(zN(uv,-ex,c)+zN(uv,ex,c)-2.*c2), abs(zN(uv,ey,c)+zN(uv,-ey,c)-2.*c2))/max(c2,1e-4);
+  float ne=max(max(1.-dot(nN(uv,-ex,c),nN(uv,ex,c)), 1.-dot(nN(uv,-ey,c),nN(uv,ey,c))), 0.);
   float soft=uPen>.01||uWob>.01?1.:.45; // hand-drawn looks keep a soft edge; clean lines are crisp
   float a=max(max(smoothstep(.1-.04*soft,.1+.04*soft,de), smoothstep(.042-.017*soft,.042+.017*soft,de2)*.9), smoothstep(.335-.115*soft,.335+.115*soft,ne)*uCrease);
   gl_FragColor=vec4(vec3(uInk),a);
 }`;
 
 function inkInit(canvas){
-  const R=new THREE.WebGLRenderer({canvas, antialias:false, alpha:false, powerPreference:'high-performance'});
+  const R=new THREE.WebGLRenderer({canvas, antialias:true, alpha:false, powerPreference:'high-performance'}); // smooths the edges of solid shapes (not the outline step)
   R.setClearColor(0xffffff,1); R.outputEncoding=THREE.LinearEncoding; R.sortObjects=true;
   INKR.renderer=R;
   INKR.rt=new THREE.WebGLRenderTarget(4,4,{minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter,depthBuffer:true});
@@ -120,10 +125,12 @@ function inkMat(tone,o){ o=o||{};
   const u={uLight:{value:LIGHT}, uTone:{value:tone}, uPR:{value:INKR.PR}, uBoil:{value:0}, uFade:{value:0}, uLook:LOOKU};
   const m=new THREE.ShaderMaterial({vertexShader:INK_VERT, fragmentShader:INK_FRAG, uniforms:u, side:o.side||THREE.FrontSide});
   m.extensions={derivatives:true}; INKR.mats.push(m);
-  m.userData.nm=new THREE.ShaderMaterial({vertexShader:NRM_VERT, fragmentShader:NRM_FRAG, uniforms:{uFade:u.uFade, uPR:u.uPR}, side:m.side});
+  m.userData.nm=new THREE.ShaderMaterial({vertexShader:NRM_VERT, fragmentShader:NRM_FRAG, uniforms:{uFade:u.uFade, uPR:u.uPR, uShell:{value:0}}, side:m.side});
   return m;
 }
 const PAPER=()=>inkMat(0), INKM=()=>inkMat(1);
+// pieces outlined by their own ink shell still hide what's behind them from the outline step, but draw no outline there themselves
+let _shellNM=null; const shellNM=()=>_shellNM||(_shellNM=new THREE.ShaderMaterial({vertexShader:NRM_VERT, fragmentShader:NRM_FRAG, uniforms:{uFade:{value:0},uPR:{value:1},uShell:{value:1}}}));
 function setLook(n){ n=clamp(n|0,0,LOOKS.length-1); const L=LOOKS[n], u=INKR.edge.uniforms; LOOKU.value=L.look!=null?L.look:n;
   u.uW.value=L.w; u.uWob.value=L.wob; u.uPen.value=L.pen; u.uInk.value=L.ink; u.uCrease.value=L.crease; INKR.look=n; INKR.boil=L.boil!==false; return L.name; }
 function setFade(obj,on){ obj.traverse(o=>{ if(o.isMesh&&o.material.uniforms&&o.material.uniforms.uFade) o.material.uniforms.uFade.value=on?1:0; }); }
@@ -146,4 +153,4 @@ function inkRender(scene,cam,t){
   R.setRenderTarget(null); R.autoClear=false; R.render(INKR.qScene,INKR.qCam); R.autoClear=true;
 }
 let _dnm=null;
-function defaultNM(m){ if(!_dnm) _dnm=new THREE.ShaderMaterial({vertexShader:NRM_VERT, fragmentShader:NRM_FRAG, uniforms:{uFade:{value:0},uPR:{value:1}}, side:THREE.DoubleSide}); return _dnm; }
+function defaultNM(m){ if(!_dnm) _dnm=new THREE.ShaderMaterial({vertexShader:NRM_VERT, fragmentShader:NRM_FRAG, uniforms:{uFade:{value:0},uPR:{value:1},uShell:{value:0}}, side:THREE.DoubleSide}); return _dnm; }
