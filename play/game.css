@@ -1,0 +1,79 @@
+/* Ink Works: the 3D game's styles, on top of styles.css. Laid out for desktop. */
+.pts{margin-right:0}
+#marks{display:none} /* the progress line shows the medals instead */
+  border:1.5px dashed var(--ink);border-radius:999px;padding:2px 8px;background:var(--paper);pointer-events:none}
+#tray{display:none}
+
+/* the bottom shelf: a solid strip of paper under the scene, so nothing in the world shows through the words */
+#costbox,#budget{display:none}
+#dock{left:0;right:0;width:auto;transform:none;background:var(--paper);border-top:2.5px solid var(--ink);
+  padding:12px 20px calc(env(safe-area-inset-bottom,0px) + 14px);
+  display:grid;grid-template-columns:minmax(230px,280px) 1fr auto;align-items:center;gap:6px 22px}
+#dock #warn{grid-column:1/-1;margin:0;justify-self:center}
+#dock .txt{min-width:0}
+#power{font-size:13.5px;font-weight:800;min-height:1.3em;margin-bottom:2px}
+#info{margin:0;min-height:1.4em}
+#dock .acts{margin:0;grid-template-columns:auto 200px}
+
+/* the budget meter */
+#budgetbox{display:grid;gap:5px}
+#budgetbox .bl{display:flex;align-items:baseline;gap:8px}
+#budgetbox .bl b{font-family:var(--display);font-weight:900;font-size:34px;line-height:.9;font-variant-numeric:tabular-nums}
+#budgetbox .bl span{font-weight:800;font-size:14px}
+#budgetbox .bar{display:flex;height:16px;border:2.5px solid var(--ink);border-radius:6px;overflow:hidden;background:
+  repeating-linear-gradient(90deg,transparent 0 6px,rgba(0,0,0,.18) 6px 7px)}
+#budgetbox .bar i{display:block;height:100%;flex:none}
+#budgetbox .bar i.seg{background:var(--ink);box-shadow:inset -2px 0 0 var(--paper);transition:width .2s}
+#budgetbox .bar i.seg.new{animation:seg .35s cubic-bezier(.34,1.56,.64,1)}
+#budgetbox .bar i.peek{width:0;background:repeating-linear-gradient(45deg,var(--ink) 0 2px,transparent 2px 5px);opacity:0;transition:width .15s ease-out,opacity .12s}
+#budgetbox .bar i.peek.on{opacity:1}
+#budgetbox.over .bar{outline:2px dashed var(--ink);outline-offset:2px}
+#budgetbox small{font-size:12.5px;font-weight:700;color:var(--soft);height:1.25em;line-height:1.25em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} /* one fixed line, so the shelf never changes height */
+#budgetbox.empty .bl span::after{content:" — all spent"}
+#budgetbox.nope{animation:nope .3s}
+@keyframes seg{0%{transform:scaleX(.1);transform-origin:left}100%{transform:none;transform-origin:left}}
+
+#hint{top:calc(env(safe-area-inset-top,0px) + 78px)}
+
+/* labels under the parts on the table: name, cost and the key that picks it */
+.tlabel{position:fixed;left:0;top:0;z-index:4;appearance:none;display:flex;align-items:center;gap:6px;white-space:nowrap;
+  border:2px solid var(--ink);border-radius:999px;background:var(--paper);color:var(--ink);padding:3px 10px 3px 4px;font:800 13px var(--ui);cursor:pointer;
+  transition:background .15s, color .15s}
+.tlabel kbd{font:800 11px var(--ui);border:1.5px solid currentColor;border-radius:6px;padding:0 5px;line-height:16px}
+.tlabel small{font-size:12px;font-weight:800;opacity:.7;font-variant-numeric:tabular-nums}
+.tlabel.on{background:var(--ink);color:var(--paper)}
+.tlabel.short{border-style:dashed}
+.tlabel.short small{text-decoration:line-through}
+.tlabel:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+/* the progress line: where you are on the way to each medal */
+#trail{position:fixed;z-index:5;top:calc(env(safe-area-inset-top,0px) + 24px);left:50%;transform:translateX(-50%);width:min(560px,44vw);height:44px;pointer-events:none}
+#trail .tl{position:absolute;left:0;right:0;top:14px;border-top:2.5px dashed var(--ink)}
+#trail .tf{position:absolute;left:0;top:12.5px;height:5.5px;background:var(--ink);border-radius:3px;width:0}
+#trail .tm{position:absolute;top:4px;transform:translateX(-50%);display:grid;justify-items:center;gap:1px}
+#trail .tm svg{background:var(--paper);border-radius:50%}
+#trail .tm small,#trail .tb small{font:800 11px var(--ui);font-variant-numeric:tabular-nums}
+#trail .tb{position:absolute;top:-6px;transform:translateX(-50%);border-left:2px solid var(--ink);height:26px;padding-left:3px}
+#trail .tb small{position:absolute;top:-8px;left:4px;color:var(--soft)}
+#trail .tp{position:absolute;top:6px;transform:translateX(-50%);width:20px;height:20px;border:2.5px solid var(--ink);border-radius:6px;background:var(--paper)}
+#trail .tp i{position:absolute;left:4px;top:5px;width:3px;height:3px;border-radius:50%;background:var(--ink);box-shadow:6px 0 0 var(--ink)}
+
+/* words that pop out of the machine: "Powered!", "Flat!" */
+.word{position:fixed;left:0;top:0;z-index:7;pointer-events:none;font-family:var(--display);font-style:italic;font-weight:900;font-size:26px;line-height:1;white-space:nowrap;
+  text-shadow:2px 3px 0 #fff,-2px -2px 0 #fff,2px -2px 0 #fff,-2px 2px 0 #fff;animation:wordIn 1.3s cubic-bezier(.3,.7,.3,1) forwards}
+.word.small{font-size:17px}
+@keyframes wordIn{0%{opacity:0;scale:.3 .3}15%{opacity:1;scale:1.25 .8}28%{scale:.9 1.12}40%{scale:1}80%{opacity:1}100%{opacity:0;scale:.85 1.15}}
+@media (prefers-reduced-motion: reduce){ .word{animation:none} }
+
+/* the report's buttons: real buttons laid exactly over the bottom of the clipboard page, so they stay crisp */
+#report{position:fixed;inset:0;z-index:6;pointer-events:none}
+.pbtn{position:fixed;pointer-events:auto;appearance:none;box-sizing:border-box;margin:0;padding:0;cursor:pointer;display:grid;place-items:center;
+  border:2.5px solid var(--ink);border-radius:2px;background:var(--paper);color:var(--ink);font:800 16px var(--ui);line-height:1;white-space:nowrap;
+  box-shadow:4px 4px 0 var(--ink);transition:transform .12s, box-shadow .12s}
+.pbtn.main{background:var(--ink);color:var(--paper);font-family:var(--display);font-style:italic;font-weight:900}
+.pbtn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}
+.pbtn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+.pbtn:focus-visible{outline:3px solid var(--ink);outline-offset:4px}
+#reportKeys{position:fixed;text-align:center;color:var(--soft);font-weight:700;white-space:nowrap}
+@media (prefers-reduced-motion: reduce){ .pbtn{transition:none} }
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
